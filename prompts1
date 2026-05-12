@@ -1,0 +1,289 @@
+Below is a sequence of AI prompts designed to be fed into a code‑generating AI tool (e.g., ChatGPT, Claude, GitHub Copilot). Each prompt builds upon the previous one, leading to a fully functional React + Django REST appraisal system with the three required views (Engineering Manager, Employee, HR), dummy data, unit tests, >100 use cases, and production readiness.
+
+---
+
+Prompt 1 – Project Structure & Initial Setup
+
+```
+Create two separate repository folders:
+- "frontend-react" – for a React single‑page application.
+- "backend-django" – for a Django REST Framework (DRF) application.
+
+Inside "backend-django", initialize a Django project named "appraisal_system" and a Django app named "api". Use Python 3.11. Install djangorestframework, django-cors-headers, drf-yasg (for OpenAPI), and pytest-django.
+
+Inside "frontend-react", initialize a React app using Vite with TypeScript. Install axios, react-router-dom, @tanstack/react-query, and tailwindcss.
+
+Create a top‑level README.md explaining the purpose of the two folders and how they interact.
+```
+
+---
+
+Prompt 2 – Backend Data Models & Dummy Data
+
+```
+In the Django "api" app, define the following models:
+- Employee (user: OneToOne with Django User, role: choices [MANAGER, HR, EMPLOYEE], manager: ForeignKey self)
+- JiraTicket (ticket_id, story_points, status, created_date, assigned_to)
+- GitCommit (commit_hash, lines_changed, commit_date, author)
+- PeerFeedback (from_employee, to_employee, rating (1-5), comment, created_date)
+- SelfAssessment (employee, period (H1/H2), achievements, context_notes, submitted_date)
+- Appraisal (employee, manager, period, overall_rating, ai_draft_text, final_text, status [draft/approved], manager_override_notes)
+- AppraisalMetric (appraisal, metric_name, value, source_type, data_point_id)
+- CalibrationIssue (manager, issue_type, severity [LOW/MEDIUM/HIGH], description, ai_recommendation, resolved)
+
+Add a management command "create_dummy_data" that:
+- Creates 10 employees (3 managers, 1 HR, 6 employees), each with Jira tickets (10-20 per employee), Git commits (30-50 per employee), peer feedback (5-10 per employee), self assessments (2 per employee).
+- Generates appraisals for the current H1 2026 cycle, with AI draft text, and some calibration issues.
+
+Run the command and verify data creation in Django shell.
+```
+
+---
+
+Prompt 3 – Backend REST API Endpoints (Full List)
+
+```
+Implement the following REST API endpoints in Django REST Framework. Use class‑based views or viewsets with proper serializers. Add permissions: only managers can see their team, HR sees all, employees see their own data.
+
+### Authentication
+- POST /api/login/ (returns role & user info)
+- POST /api/logout/
+
+### Engineering Manager View
+- GET /api/manager/dashboard/ → summary: team members count, AI drafts ready, avg time per appraisal.
+- GET /api/manager/team/ → list of employees under this manager, with appraisal completeness percentage.
+- GET /api/manager/employee/<int:pk>/ → aggregated metrics (Jira, Git, feedback, self‑assessment) + AI generated draft appraisal.
+- PUT /api/manager/appraisal/<int:pk>/ → update final_text, override AI, change status to approved.
+
+### Employee View
+- GET /api/employee/dashboard/ → performance trend (current score vs team benchmark), alerts (e.g., April dip).
+- GET /api/employee/metrics/ → all Jira, Git, feedback, learning activities with last sync timestamps.
+- POST /api/employee/context/ → add context note to a specific metric (e.g., “April low commits due to on‑call”).
+- GET /api/employee/achievements/ → list of self‑submitted achievements.
+- POST /api/employee/achievements/ → create new achievement.
+- POST /api/employee/artifacts/ → upload supporting file (PDF/image).
+- GET /api/employee/suggestions/ → AI‑powered improvement suggestions.
+
+### HR Calibration View
+- GET /api/hr/calibration/dashboard/ → cycle progress, completion rate, flagged issues.
+- GET /api/hr/issues/ → list of calibration issues with AI recommendations.
+- POST /api/hr/issues/<int:pk>/resolve/ → mark issue resolved, log action.
+- GET /api/hr/manager-consistency/ → table of managers with avg rating, std dev, outliers count.
+- GET /api/hr/audit-log/ → log of AI recommendations and manager overrides (role‑based).
+
+Write explicit serializers and ensure all endpoints return JSON that matches the UI mockups provided in the original requirement.
+```
+
+---
+
+Prompt 4 – React UI: Engineering Manager View
+
+```
+In the frontend-react folder, create the following components and pages:
+
+1. A Layout with sidebar navigation that changes based on user role (manager, employee, HR).
+2. Engineering Manager Dashboard Page:
+   - Header: “12026 Performance Review Cycle”, AI Efficiency card (time saved), team member count, AI drafts ready.
+   - Search bar for team members.
+   - List of team members (card per member) showing name, role, appraisal completeness %, updated date, and status (Ready to Review).
+   - Switch Role dropdown (to test different views – use mock role switching).
+
+Use React Query to fetch data from the backend endpoints:
+- GET /api/manager/dashboard
+- GET /api/manager/team
+
+Implement an “Employee Detail” page (reachable by clicking a team member) that displays:
+- Aggregated metrics (Jira, Git, feedback, self‑assessment) using charts (recharts library).
+- The AI‑generated draft appraisal with an editable text area and an “Override & Approve” button that calls PUT /api/manager/appraisal/<id>/.
+
+Add loading skeletons, error boundaries, and toast notifications for success/error.
+```
+
+---
+
+Prompt 5 – React UI: Employee View
+
+```
+Create the Employee Dashboard page that matches the provided mockup:
+
+- Header: “My Performance Dashboard – H1 2026 Review Period”.
+- Performance Alert (if April dip detected) with a call to action to “Add Context”.
+- Performance Trend graph: line chart showing “Your Score” vs “Team Benchmark” over months.
+- Section “Add Context to Your Metrics” – a textarea for submitting context (POST /api/employee/context/).
+- “My Achievements & Contributions” – list of existing achievements, with a button “+ Add Achievement” that opens a modal form (title, description, date, verified?).
+- “Upload Supporting Artifacts” – drag‑and‑drop file upload component.
+- “What Data is Being Evaluated” – card showing counts for Jira tickets, Git commits, peer feedback, learning activities, self‑assessments, each with last sync time.
+- “AI‑Powered Improvement Suggestions” – list from GET /api/employee/suggestions/.
+
+All forms must submit to the corresponding backend endpoints and refresh the relevant data.
+```
+
+---
+
+Prompt 6 – React UI: HR Calibration View
+
+```
+Build the HR Calibration Dashboard page:
+
+- Top bar: “Appraisal Cycle Progress” – goal (6→2 weeks), current days in cycle, completion rate (e.g., 38/45 appraisals completed).
+- “Calibration Issues Flagged by AI” – a grid of cards, each showing:
+   - Severity (HIGH/MEDIUM/LOW), issue type (Rating Outlier, Low Consistency, Gender Bias, Recency Bias).
+   - Manager name, description, AI recommendation.
+   - Buttons: “Schedule Calibration Session”, “View Details”, “Resolve” (POST /api/hr/issues/<id>/resolve/).
+- “Organization Rating Distribution” – bar chart of rating frequencies.
+- “Manager Team Comparison” – table: Manager, Team Size, Avg Rating, Std Dev, Outliers, Consistency Score, Status.
+- “Audit Trail & Compliance” – KPI cards for GDPR/SOC2 compliance %, AI recommendations logged count, Manager Overrides count.
+
+Fetch data from GET /api/hr/calibration/dashboard/, GET /api/hr/issues/, GET /api/hr/manager-consistency/. Use modals for “View Details” to show full AI recommendation and allow override logging.
+```
+
+---
+
+Prompt 7 – Unit Tests for Backend
+
+```
+Write pytest unit tests for the Django backend. Cover:
+
+- Model creation and dummy data command (test that 10 employees, tickets, commits are created).
+- API endpoints:
+   - Manager endpoints: test that a manager can only see his/her team, and that PUT /appraisal/ updates correctly.
+   - Employee endpoints: test that an employee cannot see another employee’s data.
+   - HR endpoints: test that only HR users can view calibration issues.
+- Test the AI aggregation logic (a simple scoring function that combines Jira story points + commit count + peer feedback rating to produce an overall rating).
+- Test alert condition: April dip detection (when employee’s April metrics are 20% lower than March average).
+- Test file upload (achievement artifact).
+
+Run tests with `pytest` and ensure coverage > 80%.
+```
+
+---
+
+Prompt 8 – Unit Tests for React Frontend
+
+```
+Write unit tests for the React frontend using Vitest + Testing Library:
+
+- Test that the Engineering Manager Dashboard renders the team list and search filter works.
+- Test that Employee Dashboard shows the performance alert when the API returns a dip flag.
+- Test that “Add Context” form submission calls the correct API endpoint and shows a success toast.
+- Test that the HR Calibration page displays the calibration issues cards and that clicking “Resolve” sends a POST request.
+- Mock API responses using MSW (Mock Service Worker).
+
+Include a test for role switching: after changing role to HR, the sidebar navigation updates and the HR Dashboard is displayed.
+```
+
+---
+
+Prompt 9 – Backend Production Readiness & DevOps
+
+```
+Prepare the Django backend for production:
+
+- Add a Dockerfile (multi‑stage, using python:3.11-slim) that installs requirements, runs collectstatic, and starts gunicorn.
+- Add a docker-compose.yml for local production simulation: services for django (with gunicorn), postgresql, nginx (to serve static files and proxy).
+- Create a GitHub Actions workflow (.github/workflows/deploy.yml) that:
+   - Runs unit tests on push.
+   - Builds Docker image and pushes to Docker Hub (or GHCR).
+   - Deploys to a simple hosting (e.g., Render, Fly.io) using a deploy hook.
+- Write a Kubernetes deployment descriptor (deployment.yaml, service.yaml, ingress.yaml) for deployment on a cluster (e.g., minikube testing).
+- Add environment variables for SECRET_KEY, DATABASE_URL, DEBUG=0, ALLOWED_HOSTS, CORS_ORIGIN_WHITELIST.
+- Ensure the backend serves the React build as static files in production (by copying frontend build to Django’s static folder).
+```
+
+---
+
+Prompt 10 – End‑to‑End Validation & Run Instructions
+
+```
+Provide a validation script and run instructions:
+
+1. Create a shell script `validate.sh` that:
+   - Starts both backend (Django runserver) and frontend (Vite dev server) in background.
+   - Runs a set of curl commands to test critical API endpoints (login as manager, fetch team, fetch employee data).
+   - Uses Playwright (or Puppeteer) to automate a browser test:
+       * Login as manager → see team list → click an employee → edit AI draft → approve.
+       * Login as employee → see performance alert → add context → upload a dummy file.
+       * Login as HR → see calibration issue → click resolve.
+   - Reports “All tests passed” if no errors.
+
+2. Instructions to run locally (development):
+   - Backend: `cd backend-django && python manage.py runserver`
+   - Frontend: `cd frontend-react && npm run dev`
+   - Access UI at localhost:5173, backend API at localhost:8000.
+
+3. Instructions to run in production:
+   - `docker-compose up --build` from the root folder (after placing both Dockerfiles appropriately).
+   - Or use the provided Kubernetes manifests: `kubectl apply -f k8s/`.
+
+4. Validate that the application works end‑to‑end by following the above steps.
+```
+
+---
+
+Prompt 11 – Documenting 100+ Use Cases
+
+```
+List at least 100 distinct use cases covering the three views. Examples:
+
+Engineering Manager (40 use cases)
+1. Login as manager, view dashboard.
+2. See total team members count.
+3. See number of AI drafts ready.
+4. Search team members by name.
+5. View appraisal completeness percentage for each member.
+6. Click on employee to see aggregated metrics.
+7. View Jira ticket completion graph.
+8. View Git commit frequency heatmap.
+9. Read AI-generated draft appraisal.
+10. Edit AI draft and add manager comments.
+11. Override AI rating (e.g., from 4.2 to 4.5).
+12. Approve appraisal and lock it.
+13. ... (continue to 40)
+
+Employee (35 use cases)
+41. Login as employee, view performance dashboard.
+42. See performance trend line chart.
+43. See alert when metrics dip (e.g., April).
+44. Add context note to a low-activity month.
+45. Add a new achievement (“Led platform migration”).
+46. Upload supporting artifact (PDF).
+47. View what data is being evaluated (counts).
+48. Refresh data sync timestamps.
+49. See AI improvement suggestions.
+50. ... (continue to 75)
+
+HR (25 use cases)
+76. Login as HR, view calibration dashboard.
+77. See cycle progress (days elapsed vs target).
+78. View list of AI-flagged issues.
+79. Filter issues by severity (HIGH/MEDIUM/LOW).
+80. Click “Schedule Calibration Session” (opens calendar).
+81. Resolve an issue and log the action.
+82. View manager consistency table sorted by outlier count.
+83. Drill into a manager to see team rating distribution.
+84. Export audit log as CSV.
+85. ... (continue to 100+)
+
+Include all edge cases: no internet connection, API returns 500, file too large, duplicate achievement, etc.
+```
+
+---
+
+Prompt 12 – Final Integration & Polish
+
+```
+Now integrate all parts:
+
+- Ensure every API endpoint listed in Prompt 3 is actually implemented and wired to the React UI components from Prompts 4‑6.
+- Verify that dummy data from Prompt 2 populates the dashboards realistically.
+- Run the validation script (Prompt 10) to confirm everything works.
+- Add a script `generate_openapi.yml` in the Django backend that exports an OpenAPI spec using drf-yasg, and place it in the frontend folder for future client generation.
+- Write a final README.md at the root explaining how to set up, run tests, and deploy to production (using the Docker Compose or Kubernetes method).
+- The entire application must be consistent: frontend types match backend serializers, error handling shows meaningful messages, and role‑based access is enforced both in UI (conditional rendering) and backend (permissions).
+
+All prompts have been executed – deliver the working code in two folders as described.
+```
+
+---
+
+These 12 prompts (each containing multiple sub‑instructions) will guide an AI to produce a fully functional, production‑ready React + Django appraisal system that satisfies all the given requirements, including the three user views, dummy data, unit tests, >100 use cases, local/production run, and DevOps descriptors.
