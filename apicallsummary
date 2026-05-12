@@ -1,0 +1,167 @@
+Based on the requirements document, here is a complete list of REST API calls needed for the AI‑powered appraisal system. The calls are grouped by functional area and user role, with HTTP methods and endpoint paths.
+
+---
+
+1. Authentication & User Context
+
+Method Endpoint Description
+POST /api/auth/login/ Email/password login; returns user profile, role (manager/employee/hr), JWT token
+POST /api/auth/logout/ Blacklist token
+GET /api/auth/me/ Get current user’s role, team ID, permissions
+POST /api/auth/refresh/ Refresh JWT token
+
+---
+
+2. Engineering Manager View
+
+2.1 Dashboard & Team Overview
+
+Method Endpoint Description
+GET /api/manager/dashboard/ Summary: team size, AI drafts ready, average time saved, cycle status
+GET /api/manager/team/ List of direct reports with appraisal completeness %, last updated, status (Ready to Review)
+GET /api/manager/team/search/?q={name} Search team members by name/role
+GET /api/manager/employee/{id}/aggregated/ All metrics for one employee (Jira, Git, feedback, self-assessment) with source citations
+
+2.2 AI Draft & Appraisal Management
+
+Method Endpoint Description
+GET /api/manager/employee/{id}/appraisal/draft/ Retrieve AI‑generated draft appraisal (narrative + rating) with cited data points
+PUT /api/manager/employee/{id}/appraisal/ Update final appraisal (override AI text/rating, add manager comments)
+POST /api/manager/employee/{id}/appraisal/approve/ Lock and finalize appraisal, mark as approved
+GET /api/manager/employee/{id}/appraisal/history/ Previous appraisal ratings and trajectories
+
+2.3 Calibration Support
+
+Method Endpoint Description
+GET /api/manager/calibration/team-comparison/ Compare team ratings distribution vs organization average
+GET /api/manager/calibration/outliers/ Flag potential rating outliers within the manager’s team
+POST /api/manager/calibration/adjust-suggestion/ Accept AI suggestion to adjust rating (e.g., 4.2 → 4.0)
+
+2.4 Transparency & Audit
+
+Method Endpoint Description
+GET /api/manager/employee/{id}/data-contributions/ Show which specific Jira tickets, commits, feedback were used in evaluation
+GET /api/manager/audit/employee/{id}/ Log of AI recommendations and manager overrides for that employee
+
+---
+
+3. Employee (Individual Contributor) View
+
+3.1 Performance Dashboard
+
+Method Endpoint Description
+GET /api/employee/dashboard/ Current score vs team benchmark, performance trend (last 6 months), alerts (e.g., April dip)
+GET /api/employee/metrics/ Detailed counts: Jira tickets, Git commits, peer feedback, learning activities, self‑assessments – each with last sync timestamp
+GET /api/employee/performance-trend/ Raw time‑series data for chart (weekly/monthly)
+
+3.2 Adding Context & Self‑Service Data
+
+Method Endpoint Description
+POST /api/employee/context/ Add contextual note to a specific metric (e.g., “Low commits in April due to on‑call rotation”)
+GET /api/employee/achievements/ List employee’s self‑submitted achievements
+POST /api/employee/achievements/ Create new achievement (title, description, date, verification flag)
+PUT /api/employee/achievements/{id}/ Update an achievement
+DELETE /api/employee/achievements/{id}/ Delete an achievement
+POST /api/employee/artifacts/ Upload supporting file (PDF, image, doc) – returns artifact URL
+GET /api/employee/artifacts/ List uploaded artifacts
+DELETE /api/employee/artifacts/{id}/ Remove an artifact
+
+3.3 Improvement Suggestions & Visibility
+
+Method Endpoint Description
+GET /api/employee/suggestions/ AI‑powered improvement suggestions (e.g., “Attend leadership workshop”)
+GET /api/employee/early-warning/ If performance metrics are trending down (e.g., 2 consecutive sprints below baseline)
+
+---
+
+4. HR Business Partner View
+
+4.1 Calibration Dashboard & Progress
+
+Method Endpoint Description
+GET /api/hr/calibration/dashboard/ Cycle progress (days vs goal), appraisal completion rate, number of calibration meetings scheduled
+GET /api/hr/calibration/issues/ List of AI‑flagged issues (severity: LOW/MEDIUM/HIGH) – rating outlier, low consistency, gender bias, recency bias
+GET /api/hr/calibration/issues/{id}/ Detailed view of a specific issue with AI recommendation
+POST /api/hr/calibration/issues/{id}/resolve/ Mark issue as resolved, log resolution action (optional: schedule meeting)
+
+4.2 Manager Consistency & Benchmarking
+
+Method Endpoint Description
+GET /api/hr/managers/consistency/ Table of managers: team size, avg rating, std dev, outlier count, consistency score, status
+GET /api/hr/ratings/distribution/ Bar chart data for organisation‑wide rating frequencies
+GET /api/hr/manager/{id}/team-ratings/ Detailed rating distribution for one manager’s team
+
+4.3 Audit & Compliance
+
+Method Endpoint Description
+GET /api/hr/audit-log/ All AI recommendations and manager overrides (filterable by date, manager, employee)
+GET /api/hr/compliance/status/ GDPR/SOC2 compliance indicators, data retention summary
+GET /api/hr/export/audit-csv/ Download audit log as CSV
+
+---
+
+5. Senior Leader / Director View (Optional but implied)
+
+Method Endpoint Description
+GET /api/leader/org-summary/ High‑level KPIs: flight risk %, high‑performers count, promotion readiness
+GET /api/leader/manager-effectiveness/ Ranking of managers by team performance and calibration fairness
+GET /api/leader/promotion-candidates/ Employees with trajectory scores above threshold
+
+---
+
+6. Data Integration & Admin
+
+6.1 Integration Sync (Jira, Git, Feedback Platforms)
+
+Method Endpoint Description
+POST /api/admin/integrations/sync/jira/ Manually trigger Jira ticket sync (or use webhook)
+POST /api/admin/integrations/sync/git/ Trigger Git commit sync
+POST /api/admin/integrations/sync/feedback/ Sync peer feedback from external 360‑tool
+GET /api/admin/integrations/status/ Last sync timestamps, rate limit status, errors
+
+6.2 Weighting & Configuration
+
+Method Endpoint Description
+GET /api/admin/weighting/ Current scoring weights (e.g., Jira 40%, Git 20%, Feedback 30%, Self 10%)
+PUT /api/admin/weighting/ Update weights (admin/HR only)
+GET /api/admin/competency-framework/ Custom competency definitions per role
+PUT /api/admin/competency-framework/ Update competencies
+
+6.3 Bulk Appraisal Operations
+
+Method Endpoint Description
+POST /api/admin/cycle/start/ Begin new appraisal cycle (sets period, resets statuses)
+GET /api/admin/cycle/current/ Get active cycle details (H1 2026, deadlines)
+POST /api/admin/cycle/close/ Close cycle, archive data
+
+---
+
+7. AI & Analytics (Internal use, but can be exposed)
+
+Method Endpoint Description
+POST /api/ai/generate-draft/{employee_id}/ Trigger LLM to produce draft appraisal narrative (usually called by manager view)
+POST /api/ai/detect-bias/ Run bias detection on a set of appraisals (used by HR calibration)
+GET /api/ai/anomaly-detection/ Identify sudden changes in employee metrics (e.g., 40% drop in commits)
+
+---
+
+8. Webhooks (for real‑time updates)
+
+Method Endpoint Description
+POST /api/webhooks/jira/ Receive Jira event (ticket created/closed) and update data
+POST /api/webhooks/github/ Receive Git push/PR event
+POST /api/webhooks/slack/ Receive kudos/recognition from Slack
+
+---
+
+Summary of Key API Categories
+
+Role Primary Endpoints
+Manager /api/manager/* – team, employee metrics, draft appraisal, calibration support
+Employee /api/employee/* – dashboard, context, achievements, artifacts, suggestions
+HR /api/hr/* – calibration issues, manager consistency, audit log
+Admin /api/admin/* – integration sync, weighting, cycle management
+Leader /api/leader/* – org‑level summaries, promotion candidates
+Auth /api/auth/* – login, logout, profile
+
+These API calls cover all functionality mentioned in the document: data aggregation from Jira/Git/feedback, AI draft generation, manager override, employee self‑service context and achievements, HR calibration, bias detection, audit trails, and compliance.
