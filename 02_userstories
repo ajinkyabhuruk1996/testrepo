@@ -1,0 +1,544 @@
+name: user-stories
+description: Act as an Agile Product Manager to create user stories grouped by user role with acceptance criteria, priorities, and dependencies. Use after requirements are finalized, before sprint planning.
+
+Act as an Agile Product Manager.
+
+Based on the requirements:
+
+Create user stories grouped by user role
+Use the format:
+"As a <role>, I want <feature>, so that <benefit>"
+
+For each story include:
+- Acceptance criteria (Given / When / Then)
+- Priority (P0 / P1 / P2)
+- Dependencies (if any)
+
+Output:
+- Markdown format
+- Save as docs/02_user_stories.md
+
+---
+
+# User Stories: AI-Powered Appraisal System
+
+## Story Priority Definitions
+
+| Priority | Meaning | Target Sprint |
+|----------|---------|---------------|
+| **P0** | Must-have for MVP; system cannot launch without it | Sprint 1-2 |
+| **P1** | High value; should be included in first release | Sprint 3-4 |
+| **P2** | Nice to have; can be deferred to post-MVP | Sprint 5+ |
+
+---
+
+## Role 1: Employee (Individual Contributor)
+
+### US-EMP-01: View Performance Dashboard
+**As an** Employee,
+**I want** to see my real-time performance dashboard with my current score compared to team benchmark,
+**so that** I understand where I stand before my formal appraisal.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|------|
+| I am logged in as an employee | I navigate to My Dashboard | I see my current score (e.g., 90) and team benchmark (e.g., 85) |
+| Performance data exists for current cycle | I view the trend chart | I see a line chart of my performance over last 6 months |
+| My metrics dipped in a specific month | I load the dashboard | I see an alert banner explaining the dip and suggesting I add context |
+
+**Priority:** P0
+**Dependencies:** None (UI can mock data initially)
+
+---
+
+### US-EMP-02: Add Context to Metrics
+**As an** Employee,
+**I want** to add contextual notes explaining unusual metric patterns (like low commit activity during on-call weeks),
+**so that** my manager understands the full picture and I am not penalized for expected fluctuations.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|------|
+| I see a performance alert for April dip | I click "Add Context" | A form opens with the metric period pre-filled |
+| I write an explanation and submit | I click "Submit Context" | My note is saved and visible to my manager |
+| The system detects my context note | My manager views my appraisal | The note appears alongside the relevant metric |
+
+**Priority:** P0
+**Dependencies:** US-EMP-01 (Dashboard)
+
+---
+
+### US-EMP-03: Submit Self-Reported Achievements
+**As an** Employee,
+**I want** to add my own achievements like mentoring junior engineers or leading projects,
+**so that** my manager sees contributions that may not appear in automated metrics.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I am on My Achievements section | I click "+ Add Achievement" | A form appears with fields for title, description, date, category |
+| I fill in the details and submit | I click "Save" | My achievement is added to the list with "Pending Verification" status |
+| My manager reviews my achievements | They view my profile | They see my self-reported achievements and can mark them verified |
+
+**Priority:** P0
+**Dependencies:** None
+
+---
+
+### US-EMP-04: Upload Supporting Artifacts
+**As an** Employee,
+**I want** to upload presentations, customer feedback, or design documents as evidence of my work,
+**so that** I can provide concrete proof of my contributions.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I am on the Artifacts section | I drag and drop a file | The file uploads and shows a success confirmation |
+| I have uploaded multiple files | I view my artifacts list | I see all uploaded files with names, dates, and types |
+| I no longer need an artifact | I click delete | The artifact is removed from the system |
+
+**Priority:** P1
+**Dependencies:** US-EMP-03 (Achievements)
+
+---
+
+### US-EMP-05: View AI-Powered Improvement Suggestions
+**As an** Employee,
+**I want** to see AI-generated suggestions for skills I should develop,
+**so that** I can proactively work on areas that will help my career growth.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| The AI analyzes my performance gaps | I view my dashboard | I see suggestions like "Consider attending Leadership Essentials workshop" |
+| I click on a suggestion | I interact with it | I see more details and a link to relevant learning resources |
+| My performance improves in that area | AI re-evaluates | The suggestion may be marked as "In Progress" or removed |
+
+**Priority:** P1
+**Dependencies:** US-EMP-01 (Dashboard), AI Service
+
+---
+
+### US-EMP-06: Receive Early Warning of Performance Dips
+**As an** Employee,
+**I want** to receive alerts when my metrics show a downward trend,
+**so that** I can address issues early rather than being surprised at review time.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| My metrics drop for 2 consecutive sprints | The system detects the anomaly | I see a warning banner on my dashboard |
+| I click on the warning | I expand it | I see specific metrics that declined and a prompt to add context |
+| I add context explaining the dip | I submit it | The warning severity decreases or is dismissed |
+
+**Priority:** P1
+**Dependencies:** US-EMP-01 (Dashboard), Anomaly Detection Service
+
+---
+
+### US-EMP-07: See Which Data Points Contributed to My Review
+**As an** Employee,
+**I want** to see exactly which Jira tickets, commits, and feedback were used in my evaluation,
+**so that** I trust the system is fair and transparent.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| My manager has generated an AI draft | I view "What Data is Being Evaluated" | I see counts: Jira: 247, Git: 523, Feedback: 12 |
+| I click on Jira data | I expand the section | I see a list of specific ticket IDs and titles |
+| A data source is out of sync | I check the status | I see a "Last sync" timestamp and "Needs Update" indicator |
+
+**Priority:** P0
+**Dependencies:** US-MGR-02 (AI Draft Generation)
+
+---
+
+## Role 2: Engineering Manager
+
+### US-MGR-01: View Team Dashboard
+**As a** Engineering Manager,
+**I want** to see a unified dashboard of all my direct reports with their appraisal completeness status,
+**so that** I can quickly understand my team's progress and prioritize my time.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I am logged in as a manager with 6 team members | I navigate to Manager Dashboard | I see team size (6), AI drafts ready (4), and avg time per appraisal (25m) |
+| I need to find a specific employee | I type in the search bar | The team list filters to show matching names |
+| I want to see who is ready for review | I look at the status column | Each member shows "Ready to Review", "In Progress", or "Not Started" |
+
+**Priority:** P0
+**Dependencies:** None
+
+---
+
+### US-MGR-02: Generate AI Draft Appraisal
+**As a** Engineering Manager,
+**I want** the system to automatically generate a draft appraisal with cited data points for each employee,
+**so that** I save 3-4 hours of manual prep work per employee.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I select an employee from my team | I click "Generate AI Draft" | The system returns a draft with rating (e.g., 4.2), strengths, and areas for improvement |
+| The draft includes data citations | I expand a strength claim | I see source links: "PROJ-123: Implemented auth service", "Peer feedback from Marcus" |
+| The AI detects potential bias | The draft is generated | I see bias flags like "Recency bias detected - recent work overweighted by 32%" |
+
+**Priority:** P0
+**Dependencies:** Data Integration (Jira, Git, Feedback APIs), AI Service
+
+---
+
+### US-MGR-03: Override AI Draft
+**As a** Engineering Manager,
+**I want** to edit, add comments, or override the AI-generated rating and narrative,
+**so that** I can apply my human judgment where the AI might miss context.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I am viewing an AI draft | I click "Edit" on the rating | I can change 4.2 to 4.0 using a slider or number input |
+| I want to add my own comments | I type in the manager comments field | My comments are saved alongside the AI narrative |
+| I override a strength recommendation | I delete it and add my own | The system logs my override in the audit trail |
+
+**Priority:** P0
+**Dependencies:** US-MGR-02 (AI Draft Generation)
+
+---
+
+### US-MGR-04: Approve and Finalize Appraisal
+**As a** Engineering Manager,
+**I want** to lock and finalize an appraisal once I am satisfied,
+**so that** the employee receives their official review and no further changes can be made.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I have completed editing the appraisal | I click "Approve & Finalize" | A confirmation modal asks "Are you sure? This will lock the appraisal." |
+| I confirm the action | I click "Yes, Finalize" | The status changes from "Draft" to "Approved" |
+| I try to edit an approved appraisal | I click on it | Edit buttons are disabled; I see "This appraisal has been finalized" |
+
+**Priority:** P0
+**Dependencies:** US-MGR-03 (Override AI Draft)
+
+---
+
+### US-MGR-05: Compare Team Ratings for Calibration
+**As a** Engineering Manager,
+**I want** to see how my team's ratings compare to organizational averages,
+**so that** I can identify if I am being too lenient or too harsh.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I have finalized at least 3 appraisals | I view the Calibration tab | I see my team's average rating (4.6) vs org average (4.0) |
+| My rating is significantly higher than org average | I view the comparison | I see a flag: "Your ratings are 0.6 points above average - consider review" |
+| I click on the suggestion | I accept the AI recommendation | I can adjust ratings with one click to bring them in line |
+
+**Priority:** P1
+**Dependencies:** US-MGR-04 (Finalize Appraisal), HR Calibration Service
+
+---
+
+### US-MGR-06: View Audit Trail of My Edits
+**As a** Engineering Manager,
+**I want** to see a log of all AI recommendations I accepted or overrode,
+**so that** I can justify my decisions during HR calibration reviews.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I have overridden 3 AI suggestions | I click "Audit Trail" for an employee | I see entries: "Override: Changed rating from 4.2 to 4.0", "Override: Removed improvement suggestion" |
+| HR is reviewing my team | They access the audit log | They see timestamps, original AI values, and my overrides |
+| A compliance audit occurs | The auditor requests logs | I can export the audit trail as CSV |
+
+**Priority:** P1
+**Dependencies:** US-MGR-03 (Override AI Draft)
+
+---
+
+## Role 3: HR Business Partner
+
+### US-HR-01: View Calibration Dashboard
+**As an** HR Business Partner,
+**I want** to see the overall appraisal cycle progress and key metrics,
+**so that** I can ensure the cycle completes within the 2-week goal.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| The appraisal cycle is active | I navigate to HR Calibration Dashboard | I see completion rate (38/45, 84%), days in cycle (12/14), and goal status |
+| A manager is falling behind | I view the dashboard | I see a warning for that manager to prioritize completion |
+| Calibration meetings are scheduled | I view the dashboard | I see meetings held (2) and scheduled (2) |
+
+**Priority:** P0
+**Dependencies:** US-MGR-04 (Finalize Appraisal)
+
+---
+
+### US-HR-02: View AI-Flagged Calibration Issues
+**As an** HR Business Partner,
+**I want** to see automatically flagged issues like rating outliers, low consistency, or bias patterns,
+**so that** I can intervene before unfair appraisals are finalized.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| A manager's team has rating outliers | I view Calibration Issues | I see an issue: "John Smith: 2 outlier ratings detected" with MEDIUM severity |
+| A manager shows gender bias pattern | I expand that issue | I see detail: "Female employees rated 0.3 points lower than males - 5 affected" |
+| I want to resolve an issue | I click "Schedule Calibration Session" | A modal opens to invite the manager and set a meeting time |
+
+**Priority:** P0
+**Dependencies:** AI Bias Detection Service, US-MGR-04 (Finalize Appraisal)
+
+---
+
+### US-HR-03: View Manager Consistency Analysis
+**As an** HR Business Partner,
+**I want** to see a table comparing all managers by team size, average rating, standard deviation, and outliers,
+**so that** I can identify which managers need calibration support.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I have data from multiple managers | I view Manager Consistency table | I see rows for Alex Rivera (8 team, 4.2 rating, 0.45 std dev, 0 outliers, 92% consistency) |
+| A manager has low consistency score | I scan the Status column | I see "Review Needed" for Maria Garcia and John Smith |
+| I click on a manager's row | I expand it | I see detailed team rating distribution and outlier details |
+
+**Priority:** P0
+**Dependencies:** US-MGR-04 (Finalize Appraisal)
+
+---
+
+### US-HR-04: View Organization Rating Distribution
+**As an** HR Business Partner,
+**I want** to see a chart of rating distribution across the entire organization,
+**so that** I can ensure there is no grade inflation or forced curve distortion.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| Appraisals are completed across org | I view Rating Distribution chart | I see a bar chart with counts for ratings 1.0 through 5.0 |
+| The distribution shows unexpected spikes | I hover over the 4.5 bar | I see a tooltip: "15 employees (33%) - mostly from Engineering" |
+| I want to investigate further | I click on the bar | I see a filtered list of employees with that rating |
+
+**Priority:** P1
+**Dependencies:** US-MGR-04 (Finalize Appraisal)
+
+---
+
+### US-HR-05: Access Compliance Audit Logs
+**As an** HR Business Partner,
+**I want** to view all AI recommendations and manager overrides with timestamps and user details,
+**so that** I can demonstrate GDPR/SOC2 compliance during audits.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I need to respond to a compliance audit | I navigate to Audit Logs | I see a complete list of 137 AI recommendations and 23 manager overrides |
+| I want to filter by manager | I select "John Smith" from filter | I see only actions performed by John Smith |
+| I need to export for auditors | I click "Export CSV" | A CSV file downloads with all audit log entries |
+
+**Priority:** P0
+**Dependencies:** US-MGR-03 (Override AI Draft), Audit Logging Service
+
+---
+
+### US-HR-06: Export Audit Trail for Dispute Resolution
+**As an** HR Business Partner,
+**I want** to export a detailed audit trail for a specific employee appraisal,
+**so that** I can provide evidence during a performance review dispute.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| An employee disputes their rating | I search for the employee by name | I see their appraisal with all data sources used |
+| I need to show what the AI recommended | I expand "AI Draft History" | I see original AI rating (4.2) and narrative |
+| I need to show manager changes | I expand "Manager Overrides" | I see manager changed rating to 4.0 and added comments |
+
+**Priority:** P1
+**Dependencies:** US-HR-05 (Audit Logs)
+
+---
+
+## Role 4: Senior Leader / Director
+
+### US-LDR-01: View Org-Level Talent Summary
+**As a** Senior Leader,
+**I want** to see high-level KPIs including flight risk percentage, high-performers count, and promotion readiness,
+**so that** I can make informed talent investment decisions.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I am logged in as a Director | I navigate to Org Summary | I see high-performers (12), flight risk (8%), promotion-ready (6) |
+| I want to see which teams have highest flight risk | I expand the section | I see a breakdown by team/department |
+| I click on a high-performer | I view their profile | I see their trajectory, recent achievements, and manager's recommendation |
+
+**Priority:** P1
+**Dependencies:** US-MGR-04 (Finalize Appraisal)
+
+---
+
+### US-LDR-02: View Manager Effectiveness Ranking
+**As a** Senior Leader,
+**I want** to see a ranking of managers by team performance and calibration fairness,
+**so that** I can identify which managers need coaching or are ready for promotion.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| Calibration data is available | I view Manager Effectiveness | I see managers ranked by team performance vs target and calibration score |
+| A manager has high team performance but low calibration | I expand their row | I see details: "Team avg 4.6 vs org 4.0 - Possible leniency bias" |
+| I want to schedule coaching | I click "Request HR Review" | An alert is sent to HR to schedule a calibration session |
+
+**Priority:** P2
+**Dependencies:** US-HR-02 (Calibration Issues)
+
+---
+
+### US-LDR-03: Identify Promotion Candidates
+**As a** Senior Leader,
+**I want** to see employees with trajectory scores above promotion threshold,
+**so that** I can proactively plan promotions and succession.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| The system has analyzed performance trends | I view Promotion Candidates | I see a list of employees with trajectory scores > 90th percentile |
+| I want to see supporting evidence | I click on an employee | I see their performance trend chart, achievements, and manager recommendation |
+| I need to compare two candidates | I select both employees | I see a side-by-side comparison of metrics and trajectories |
+
+**Priority:** P2
+**Dependencies:** US-MGR-04 (Finalize Appraisal), AI Trajectory Service
+
+---
+
+## Role 5: System / Admin
+
+### US-ADM-01: Sync Data from Jira
+**As a** System Administrator,
+**I want** to manually trigger Jira ticket sync or configure automatic sync schedules,
+**so that** employee metrics stay up to date without manual data entry.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| Jira integration is configured | I click "Sync Jira" | The system pulls ticket completion, story points, and bug data |
+| The sync encounters an API rate limit | The process runs | The sync pauses and resumes, logging the rate limit event |
+| A sync completes successfully | I check integration status | I see "Last sync: 2026-05-12, Up to date" for Jira |
+
+**Priority:** P0
+**Dependencies:** Jira API Access
+
+---
+
+### US-ADM-02: Configure Scoring Weights
+**As a** System Administrator,
+**I want** to adjust the weight percentages for Jira, Git, feedback, and self-assessments,
+**so that** the organization can emphasize different priorities (e.g., more weight on peer feedback).
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| I have admin privileges | I navigate to Scoring Configuration | I see sliders for Jira (40%), Git (20%), Feedback (30%), Self (10%) |
+| I adjust Jira to 50% and Git to 10% | I click Save | The new weights are applied to all future AI draft generations |
+| An HR user tries to change weights | They access the page | They see a "Permission Denied" message |
+
+**Priority:** P1
+**Dependencies:** US-MGR-02 (AI Draft Generation)
+
+---
+
+### US-ADM-03: Start and Close Appraisal Cycles
+**As a** System Administrator,
+**I want** to create a new appraisal cycle with start/end dates and deadlines,
+**so that** the system knows which period to evaluate.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| The previous cycle is closed | I click "Start New Cycle" | I enter cycle name "H2 2026", start date, end date, and deadlines |
+| I submit the form | I click Create | The cycle becomes active and appears on all user dashboards |
+| The cycle end date passes | I click "Close Cycle" | All pending appraisals are locked and data is archived |
+
+**Priority:** P0
+**Dependencies:** None
+
+---
+
+### US-ADM-04: Monitor Integration Health
+**As a** System Administrator,
+**I want** to see the status of all external integrations (Jira, Git, LMS) with last sync timestamps and error counts,
+**so that** I can quickly identify and fix failed syncs before they affect appraisal data.
+
+**Acceptance Criteria:**
+| Given | When | Then |
+|-------|------|-------|
+| An integration fails to sync | I view Integration Status | I see a red indicator for that integration with error details |
+| A sync has been running for hours | I check the status | I see "Running" with a cancel button to stop it |
+| A webhook is misconfigured | I view webhook logs | I see failed delivery attempts with HTTP error codes |
+
+**Priority:** P1
+**Dependencies:** US-ADM-01 (Sync Data)
+
+---
+
+## Cross-Role Dependency Map
+US-EMP-01 (Dashboard)
+├── US-EMP-02 (Add Context)
+├── US-EMP-03 (Achievements)
+└── US-EMP-05 (AI Suggestions)
+└── AI Service
+
+US-MGR-01 (Team Dashboard)
+└── US-MGR-02 (AI Draft)
+├── Jira Integration
+├── Git Integration
+├── Feedback Integration
+└── US-ADM-01 (Sync)
+└── US-MGR-03 (Override)
+└── US-MGR-04 (Approve)
+├── US-HR-01 (HR Dashboard)
+├── US-HR-02 (Calibration Issues)
+└── US-LDR-01 (Talent Summary)
+
+US-HR-01 (Calibration Dashboard)
+├── US-HR-02 (Flag Issues)
+├── US-HR-03 (Manager Consistency)
+└── US-HR-05 (Audit Logs)
+
+text
+
+---
+
+## Story Count Summary
+
+| Role | P0 Stories | P1 Stories | P2 Stories | Total |
+|------|-----------|------------|------------|-------|
+| Employee | 3 | 3 | 0 | 6 |
+| Engineering Manager | 4 | 2 | 0 | 6 |
+| HR Business Partner | 4 | 2 | 0 | 6 |
+| Senior Leader | 0 | 1 | 2 | 3 |
+| System Admin | 2 | 2 | 0 | 4 |
+| **Total** | **13** | **10** | **2** | **25** |
+
+---
+
+## MVP Definition (Minimum Viable Product)
+
+The MVP must include **all P0 stories** from the following roles:
+- Employee: US-EMP-01, US-EMP-02, US-EMP-03
+- Engineering Manager: US-MGR-01, US-MGR-02, US-MGR-03, US-MGR-04
+- HR: US-HR-01, US-HR-02, US-HR-03, US-HR-05
+- Admin: US-ADM-01, US-ADM-03
+
+**Total MVP Stories: 13**
+
+These 13 stories deliver the core value proposition:
+1. Employees can see their data and add context
+2. Managers can generate AI drafts, override them, and finalize
+3. HR can monitor calibration and audit compliance
+4. Data syncs from Jira and Git work
+
+This user story set is ready for sprint planning. Save as `docs/02_user_stories.md`.
