@@ -1,0 +1,937 @@
+name: database-design
+description: Act as a Database Architect to choose DB type and design entities, schemas, keys, indexing, soft-delete/audit, and ER diagram. Use after API design to lock in the persistence model.
+
+Act as a Database Architect.
+
+Design the database model:
+- Choose DB type (Postgres, MySQL, MongoDB, etc.)
+- Entity list
+- Table schemas with columns and data types
+- Primary keys, foreign keys
+- Indexing strategy
+- Soft delete / audit strategy
+- ER diagram (ASCII or Mermaid)
+- Data growth considerations
+
+Output:
+- Markdown format
+- Save as docs/04_database_design.md
+
+---
+
+# Database Design: AI-Powered Appraisal System
+
+## Database Type Selection
+
+| Decision | Selection | Justification |
+|----------|-----------|----------------|
+| **Primary Database** | PostgreSQL 16+ | ACID compliance, JSONB support for flexible metrics, full-text search, strong indexing |
+| **Caching Layer** | Redis 7.x | Session storage, rate limiting, real-time sync queues |
+| **Time-Series** | TimescaleDB (PostgreSQL extension) | Performance trend data, metric history |
+| **Search** | PostgreSQL Full-Text Search | Employee search, audit log search |
+
+**Rationale for PostgreSQL:**
+- Strong data integrity for appraisal/HR data
+- JSONB columns for flexible integration data (Jira, Git payloads)
+- Row-level security for multi-tenant/role isolation
+- Audit logging with triggers
+- Excellent full-text search capabilities
+
+## Entity List
+
+| Entity | Description | Primary Access Role |
+|--------|-------------|---------------------|
+| `users` | System users (employees, managers, HR, admins) | All |
+| `teams` | Organizational teams | Manager, HR |
+| `user_teams` | User-team association (many-to-many) | Manager, HR |
+| `appraisal_cycles` | Review periods (H1 2026, H2 2026) | Manager, HR, Admin |
+| `appraisals` | Manager-finalized appraisals | Manager, HR, Employee |
+| `ai_drafts` | AI-generated draft appraisals | Manager |
+| `metrics_aggregated` | Pre-computed performance metrics | Employee, Manager |
+| `metric_data_points` | Raw metric values from integrations | System, Admin |
+| `context_notes` | Employee explanations for metrics | Employee, Manager |
+| `achievements` | Self-reported accomplishments | Employee, Manager |
+| `artifacts` | Supporting documents/uploads | Employee, Manager |
+| `peer_feedbacks` | 360-degree reviews | Employee, Manager, HR |
+| `calibration_issues` | AI-flagged fairness issues | HR |
+| `calibration_actions` | HR resolution actions | HR |
+| `audit_logs` | All AI recommendations and overrides | HR, Admin |
+| `integration_sync_logs` | Jira/Git/LMS sync tracking | Admin |
+| `scoring_weights` | Configurable metric weights | Admin |
+| `competency_frameworks` | Role-based evaluation criteria | Admin |
+| `user_sessions` | Authentication sessions | System |
+| `notifications` | User alerts and reminders | All |
+
+## Table Schemas
+
+### 1. Users & Authentication
+
+```sql
+-- Users table (extends system auth)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    avatar_url TEXT,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('employee', 'manager', 'hr', 'admin', 'leader')),
+    department VARCHAR(100),
+    job_title VARCHAR(100),
+    hire_date DATE,
+    manager_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    is_active BOOLEAN DEFAULT true,
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ, -- Soft delete
+    CONSTRAINT valid_manager CHECK (role != 'manager' OR manager_id IS NULL)
+);
+
+-- Indexes for users
+CREATE INDEX idx_users_role ON users(role) WHERE deleted_at IS NULL;
+CREATE INDEX idx_users_manager ON users(manager_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
+CREATE INDEX idx_users_search ON users USING GIN (
+    to_tsvector('english', first_name || ' ' || last_name || ' ' || email)
+);
+2. Teams
+sql
+CREATE TABLE teams (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    department VARCHAR(100),
+    manager_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    parent_team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_teams_manager ON teams(manager_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_teams_parent ON teams(parent_team_id) WHERE deleted_at IS NULL;
+
+-- User-Team association (many-to-many)
+CREATE TABLE user_teams (
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+    joined_at DATE DEFAULT CURRENT_DATE,
+    is_primary BOOLEAN DEFAULT false,
+    PRIMARY KEY (user_id, team_id)
+);
+
+CREATE INDEX idx_user_teams_team ON user_teams(team_id);
+3. Appraisal Cycles
+sql
+CREATE TABLE appraisal_cycles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL, -- 'H1 2026 Performance Review'
+    description TEXT,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    self_review_deadline DATE,
+    manager_review_deadline DATE,
+    calibration_deadline DATE,
+    status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'calibration', 'closed', 'archived')),
+    is_active BOOLEAN DEFAULT false,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_cycles_status ON appraisal_cycles(status);
+CREATE INDEX idx_cycles_dates ON appraisal_cycles(start_date, end_date);
+4. AI Drafts & Appraisals
+sql
+-- AI-generated drafts (temporary, editable)
+CREATE TABLE ai_drafts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cycle_id UUID NOT NULL REFERENCES appraisal_cycles(id),
+    manager_id UUID NOT NULL REFERENCES users(id),
+    
+    -- Draft content
+    draft_rating DECIMAL(3,1) CHECK (draft_rating BETWEEN 1.0 AND 5.0),
+    draft_strengths TEXT,
+    draft_improvements TEXT,
+    draft_summary TEXT,
+    suggestions JSONB, -- ['workshop recommendation', 'speaking opportunity']
+    
+    -- Citations (raw data sources)
+    citations JSONB, -- [{'claim': '...', 'sources': ['PROJ-123', 'PR-456']}]
+    
+    -- Bias detection results
+    bias_flags JSONB, -- {'recency_bias': false, 'leniency_bias': false}
+    
+    -- Generation metadata
+    generated_at TIMESTAMPTZ DEFAULT NOW(),
+    model_version VARCHAR(50),
+    is_accepted BOOLEAN,
+    accepted_at TIMESTAMPTZ,
+    
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(user_id, cycle_id)
+);
+
+CREATE INDEX idx_drafts_user_cycle ON ai_drafts(user_id, cycle_id);
+CREATE INDEX idx_drafts_manager ON ai_drafts(manager_id);
+CREATE INDEX idx_drafts_generated ON ai_drafts(generated_at);
+
+-- Final manager-approved appraisals
+CREATE TABLE appraisals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cycle_id UUID NOT NULL REFERENCES appraisal_cycles(id),
+    manager_id UUID NOT NULL REFERENCES users(id),
+    ai_draft_id UUID REFERENCES ai_drafts(id) ON DELETE SET NULL,
+    
+    -- Final values (may override AI draft)
+    final_rating DECIMAL(3,1) CHECK (final_rating BETWEEN 1.0 AND 5.0),
+    manager_comments TEXT,
+    override_strengths TEXT,
+    override_improvements TEXT,
+    override_summary TEXT,
+    
+    -- Approval workflow
+    status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'approved', 'locked', 'appealed')),
+    employee_acknowledged_at TIMESTAMPTZ,
+    manager_approved_at TIMESTAMPTZ,
+    hr_reviewed_at TIMESTAMPTZ,
+    
+    -- Audit tracking
+    has_overrides BOOLEAN DEFAULT false,
+    override_count INTEGER DEFAULT 0,
+    
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(user_id, cycle_id)
+);
+
+CREATE INDEX idx_appraisals_user_cycle ON appraisals(user_id, cycle_id);
+CREATE INDEX idx_appraisals_manager ON appraisals(manager_id);
+CREATE INDEX idx_appraisals_status ON appraisals(status);
+CREATE INDEX idx_appraisals_rating ON appraisals(final_rating);
+5. Metrics & Performance Data
+sql
+-- Aggregated metrics (fast dashboard queries)
+CREATE TABLE metrics_aggregated (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cycle_id UUID NOT NULL REFERENCES appraisal_cycles(id),
+    
+    -- Jira metrics
+    jira_tickets_completed INTEGER DEFAULT 0,
+    jira_story_points INTEGER DEFAULT 0,
+    jira_bugs_fixed INTEGER DEFAULT 0,
+    jira_velocity_avg DECIMAL(5,2),
+    jira_data_points INTEGER DEFAULT 0,
+    jira_last_sync TIMESTAMPTZ,
+    
+    -- Git metrics
+    git_commits INTEGER DEFAULT 0,
+    git_prs_approved INTEGER DEFAULT 0,
+    git_code_reviews INTEGER DEFAULT 0,
+    git_lines_changed INTEGER DEFAULT 0,
+    git_data_points INTEGER DEFAULT 0,
+    git_last_sync TIMESTAMPTZ,
+    
+    -- Feedback metrics
+    peer_feedback_count INTEGER DEFAULT 0,
+    recognition_received INTEGER DEFAULT 0,
+    feedback_data_points INTEGER DEFAULT 0,
+    feedback_last_sync TIMESTAMPTZ,
+    
+    -- Learning metrics
+    courses_completed INTEGER DEFAULT 0,
+    tech_talks_given INTEGER DEFAULT 0,
+    mentorship_hours DECIMAL(5,2),
+    learning_data_points INTEGER DEFAULT 0,
+    learning_last_sync TIMESTAMPTZ,
+    
+    -- Self-assessment
+    self_assessment_count INTEGER DEFAULT 0,
+    self_assessment_last_sync TIMESTAMPTZ,
+    
+    -- AI-derived scores
+    current_score DECIMAL(5,2),
+    team_benchmark DECIMAL(5,2),
+    performance_trend JSONB, -- monthly scores array
+    
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(user_id, cycle_id)
+);
+
+CREATE INDEX idx_metrics_user_cycle ON metrics_aggregated(user_id, cycle_id);
+CREATE INDEX idx_metrics_score ON metrics_aggregated(current_score);
+
+-- Time-series metric data points (for trending)
+CREATE TABLE metric_data_points (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id),
+    metric_type VARCHAR(50) NOT NULL, -- 'commits', 'tickets', 'story_points'
+    value INTEGER NOT NULL,
+    recorded_date DATE NOT NULL,
+    source_system VARCHAR(50), -- 'jira', 'github', 'manual'
+    raw_payload JSONB, -- original webhook data for debugging
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Partition by recorded_date for performance
+SELECT create_hypertable('metric_data_points', 'recorded_date'); -- TimescaleDB
+
+CREATE INDEX idx_metrics_user_date ON metric_data_points(user_id, recorded_date);
+CREATE INDEX idx_metrics_type ON metric_data_points(metric_type);
+6. Employee Self-Service
+sql
+-- Context notes for metric dips
+CREATE TABLE context_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    metric_type VARCHAR(50) NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    note TEXT NOT NULL,
+    attachments JSONB, -- ['url1', 'url2']
+    is_reviewed BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_context_user ON context_notes(user_id);
+CREATE INDEX idx_context_period ON context_notes(period_start, period_end);
+
+-- Self-reported achievements
+CREATE TABLE achievements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    achievement_date DATE NOT NULL,
+    category VARCHAR(50), -- 'project', 'mentorship', 'innovation'
+    verification_status VARCHAR(50) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'verified', 'rejected')),
+    verifier_id UUID REFERENCES users(id),
+    verified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_achievements_user ON achievements(user_id);
+CREATE INDEX idx_achievements_date ON achievements(achievement_date);
+CREATE INDEX idx_achievements_status ON achievements(verification_status);
+
+-- Supporting artifacts (uploads)
+CREATE TABLE artifacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    achievement_id UUID REFERENCES achievements(id) ON DELETE CASCADE,
+    filename VARCHAR(255) NOT NULL,
+    file_url TEXT NOT NULL,
+    file_size_bytes BIGINT,
+    mime_type VARCHAR(100),
+    artifact_type VARCHAR(50), -- 'presentation', 'feedback', 'design_doc'
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_artifacts_user ON artifacts(user_id);
+CREATE INDEX idx_artifacts_achievement ON artifacts(achievement_id);
+7. Feedback System
+sql
+CREATE TABLE peer_feedbacks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    subject_user_id UUID NOT NULL REFERENCES users(id), -- person being reviewed
+    reviewer_user_id UUID NOT NULL REFERENCES users(id), -- person giving feedback
+    cycle_id UUID REFERENCES appraisal_cycles(id),
+    
+    feedback_text TEXT NOT NULL,
+    rating_category VARCHAR(50), -- 'collaboration', 'technical', 'leadership'
+    rating_value DECIMAL(3,1) CHECK (rating_value BETWEEN 1.0 AND 5.0),
+    
+    is_anonymous BOOLEAN DEFAULT true,
+    is_shared_with_subject BOOLEAN DEFAULT true,
+    
+    status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('submitted', 'reviewed', 'flagged')),
+    
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    CONSTRAINT different_users CHECK (subject_user_id != reviewer_user_id)
+);
+
+CREATE INDEX idx_feedback_subject ON peer_feedbacks(subject_user_id);
+CREATE INDEX idx_feedback_reviewer ON peer_feedbacks(reviewer_user_id);
+CREATE INDEX idx_feedback_cycle ON peer_feedbacks(cycle_id);
+8. Calibration & HR
+sql
+-- AI-flagged calibration issues
+CREATE TABLE calibration_issues (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    manager_id UUID REFERENCES users(id),
+    cycle_id UUID REFERENCES appraisal_cycles(id),
+    
+    severity VARCHAR(20) CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH')),
+    issue_type VARCHAR(50) CHECK (issue_type IN ('rating_outlier', 'low_consistency', 'gender_bias', 'recency_bias')),
+    
+    description TEXT NOT NULL,
+    ai_recommendation TEXT,
+    suggested_action TEXT,
+    
+    affected_employees JSONB, -- ['user_id1', 'user_id2']
+    affected_count INTEGER,
+    
+    metrics_snapshot JSONB, -- contextual data at detection time
+    
+    status VARCHAR(50) DEFAULT 'open' CHECK (status IN ('open', 'in_review', 'resolved', 'dismissed')),
+    resolved_by UUID REFERENCES users(id),
+    resolved_at TIMESTAMPTZ,
+    resolution_notes TEXT,
+    
+    detected_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_issues_manager ON calibration_issues(manager_id);
+CREATE INDEX idx_issues_severity ON calibration_issues(severity) WHERE status = 'open';
+CREATE INDEX idx_issues_cycle ON calibration_issues(cycle_id);
+
+-- Calibration actions (HR adjustments)
+CREATE TABLE calibration_actions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id UUID REFERENCES calibration_issues(id) ON DELETE CASCADE,
+    appraisal_id UUID REFERENCES appraisals(id) ON DELETE CASCADE,
+    action_type VARCHAR(50) CHECK (action_type IN ('rating_adjust', 'bias_correction', 'calibration_session', 'retraining')),
+    
+    old_value JSONB,
+    new_value JSONB,
+    reason TEXT,
+    
+    performed_by UUID REFERENCES users(id),
+    performed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_actions_issue ON calibration_actions(issue_id);
+CREATE INDEX idx_actions_appraisal ON calibration_actions(appraisal_id);
+9. Audit & Compliance
+sql
+-- Comprehensive audit log
+CREATE TABLE audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    action_type VARCHAR(50) NOT NULL, -- 'AI_DRAFT_GENERATED', 'MANAGER_OVERRIDE', 'APPRAISAL_APPROVED'
+    entity_type VARCHAR(50) NOT NULL, -- 'appraisal', 'ai_draft', 'calibration_issue'
+    entity_id UUID NOT NULL,
+    user_id UUID REFERENCES users(id),
+    user_role VARCHAR(50),
+    
+    old_state JSONB,
+    new_state JSONB,
+    changes JSONB, -- diff of what changed
+    
+    ip_address INET,
+    user_agent TEXT,
+    request_id UUID, -- correlation with API request
+    
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Partition audit logs by month
+CREATE INDEX idx_audit_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX idx_audit_user ON audit_logs(user_id);
+CREATE INDEX idx_audit_action ON audit_logs(action_type);
+CREATE INDEX idx_audit_created ON audit_logs(created_at DESC);
+CREATE INDEX idx_audit_search ON audit_logs USING GIN (changes);
+10. Integration & Admin
+sql
+-- Integration sync tracking
+CREATE TABLE integration_sync_logs (
+    id BIGSERIAL PRIMARY KEY,
+    source_system VARCHAR(50) NOT NULL, -- 'jira', 'github', 'lms', 'feedback_tool'
+    sync_type VARCHAR(50), -- 'full', 'incremental', 'webhook'
+    
+    status VARCHAR(20) CHECK (status IN ('pending', 'running', 'success', 'failed', 'partial')),
+    
+    records_processed INTEGER DEFAULT 0,
+    records_failed INTEGER DEFAULT 0,
+    error_message TEXT,
+    
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_sync_source ON integration_sync_logs(source_system);
+CREATE INDEX idx_sync_status ON integration_sync_logs(status);
+
+-- Configurable scoring weights
+CREATE TABLE scoring_weights (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cycle_id UUID REFERENCES appraisal_cycles(id),
+    role_type VARCHAR(50) DEFAULT 'default', -- 'engineer', 'manager', 'default'
+    
+    jira_weight DECIMAL(5,2) DEFAULT 40.0,
+    git_weight DECIMAL(5,2) DEFAULT 20.0,
+    feedback_weight DECIMAL(5,2) DEFAULT 30.0,
+    self_weight DECIMAL(5,2) DEFAULT 10.0,
+    
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(cycle_id, role_type)
+);
+
+-- Competency frameworks
+CREATE TABLE competency_frameworks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role_type VARCHAR(50) NOT NULL,
+    competency_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    weight DECIMAL(5,2),
+    evaluation_criteria JSONB,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_competency_role ON competency_frameworks(role_type);
+Indexing Strategy
+Performance Indexes
+Index Type	Use Case	Example
+B-Tree	Equality and range queries	user_id, created_at
+Composite B-Tree	Multi-column filters	(user_id, cycle_id)
+GIN	Full-text search	to_tsvector(name, email)
+GIN	JSONB queries	citations @> '{"sources": ["PROJ-123"]}'
+BRIN	Large time-series tables	metric_data_points(recorded_date)
+Partial	Filtered queries	WHERE deleted_at IS NULL
+Index Summary Table
+Table	Index Columns	Type	Purpose
+users	(email)	Unique B-Tree	Login lookup
+users	(manager_id)	B-Tree	Team hierarchy
+appraisals	(user_id, cycle_id)	Unique B-Tree	Fast lookup
+appraisals	(manager_id, status)	Composite B-Tree	Manager dashboard
+metrics_aggregated	(user_id, cycle_id)	Unique B-Tree	Dashboard queries
+metric_data_points	(user_id, recorded_date)	B-Tree (TimescaleDB)	Trend charts
+audit_logs	(created_at DESC)	B-Tree	Compliance queries
+calibration_issues	(manager_id, severity)	Composite B-Tree	HR dashboard
+achievements	(user_id, verification_status)	Composite B-Tree	Employee view
+peer_feedbacks	(subject_user_id, cycle_id)	Composite B-Tree	Performance reviews
+Soft Delete & Audit Strategy
+Soft Delete Implementation
+sql
+-- All user-generated content uses soft delete pattern
+-- Example: Adding deleted_at column and using views for active records
+
+-- Create view for active records
+CREATE VIEW active_users AS
+SELECT * FROM users WHERE deleted_at IS NULL;
+
+-- Soft delete function (reusable)
+CREATE OR REPLACE FUNCTION soft_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.deleted_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Soft delete trigger example
+CREATE TRIGGER soft_delete_users
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    WHEN (NEW.is_active = false AND OLD.is_active = true)
+    EXECUTE FUNCTION soft_delete();
+Audit Trail Implementation
+sql
+-- Automatic audit trigger for critical tables
+CREATE OR REPLACE FUNCTION audit_trigger_function()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO audit_logs (
+        action_type, entity_type, entity_id, user_id, user_role,
+        old_state, new_state, changes, created_at
+    )
+    VALUES (
+        TG_OP,                    -- INSERT, UPDATE, DELETE
+        TG_TABLE_NAME,            -- table name
+        COALESCE(NEW.id, OLD.id),
+        current_setting('app.current_user_id', true)::UUID,
+        current_setting('app.current_user_role', true),
+        row_to_json(OLD),
+        row_to_json(NEW),
+        jsonb_strip_nulls(
+            jsonb_build_object(
+                'changed_fields', (
+                    SELECT jsonb_object_agg(key, value)
+                    FROM jsonb_each(to_jsonb(NEW))
+                    WHERE to_jsonb(OLD) ->> key != value
+                )
+            )
+        ),
+        NOW()
+    );
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply audit trigger to appraisals
+CREATE TRIGGER audit_appraisals
+    AFTER INSERT OR UPDATE OR DELETE ON appraisals
+    FOR EACH ROW
+    EXECUTE FUNCTION audit_trigger_function();
+Retention Policies
+Table	Retention Period	Archival Strategy
+metric_data_points	2 years	Aggregate to monthly after 1 year, then drop
+audit_logs	7 years (compliance)	Partition by month, archive to cold storage
+integration_sync_logs	90 days	Summarize, keep errors for 1 year
+notifications	30 days	Delete read notifications
+user_sessions	30 days	Clean expired sessions daily
+Entity Relationship Diagram (Mermaid)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ER Diagram with below code
+
+erDiagram
+    users ||--o{ user_teams : "belongs to"
+    teams ||--o{ user_teams : "contains"
+    users ||--o{ users : "manages (manager_id)"
+    teams ||--o{ teams : "parent_team"
+    
+    users ||--o{ appraisals : "receives"
+    users ||--o{ appraisals : "conducts (manager)"
+    appraisal_cycles ||--o{ appraisals : "contains"
+    ai_drafts ||--o| appraisals : "used as draft"
+    
+    users ||--o{ ai_drafts : "has draft for"
+    appraisal_cycles ||--o{ ai_drafts : "contains"
+    
+    users ||--o{ metrics_aggregated : "has metrics for"
+    appraisal_cycles ||--o{ metrics_aggregated : "contains"
+    
+    users ||--o{ metric_data_points : "generates"
+    users ||--o{ context_notes : "writes"
+    users ||--o{ achievements : "creates"
+    achievements ||--o{ artifacts : "has supporting"
+    
+    users ||--o{ peer_feedbacks : "gives"
+    users ||--o{ peer_feedbacks : "receives"
+    appraisal_cycles ||--o{ peer_feedbacks : "contains"
+    
+    users ||--o{ calibration_issues : "manages (manager)"
+    appraisal_cycles ||--o{ calibration_issues : "contains"
+    calibration_issues ||--o{ calibration_actions : "resolves"
+    appraisals ||--o{ calibration_actions : "adjusted"
+    
+    users ||--o{ audit_logs : "performs"
+    appraisals ||--o{ audit_logs : "logs"
+    ai_drafts ||--o{ audit_logs : "logs"
+    
+    users ||--o{ integration_sync_logs : "triggers"
+    appraisal_cycles ||--o{ scoring_weights : "configures"
+
+    users {
+        UUID id PK
+        string email UK
+        string password_hash
+        string first_name
+        string last_name
+        string role
+        UUID manager_id FK
+        timestamp deleted_at
+    }
+    
+    teams {
+        UUID id PK
+        string name
+        UUID manager_id FK
+        UUID parent_team_id FK
+        timestamp deleted_at
+    }
+    
+    user_teams {
+        UUID user_id PK,FK
+        UUID team_id PK,FK
+        date joined_at
+    }
+    
+    appraisal_cycles {
+        UUID id PK
+        string name
+        date start_date
+        date end_date
+        string status
+    }
+    
+    appraisals {
+        UUID id PK
+        UUID user_id FK
+        UUID cycle_id FK
+        UUID manager_id FK
+        UUID ai_draft_id FK
+        decimal final_rating
+        string status
+        boolean has_overrides
+    }
+    
+    ai_drafts {
+        UUID id PK
+        UUID user_id FK
+        UUID cycle_id FK
+        decimal draft_rating
+        jsonb citations
+        jsonb bias_flags
+    }
+    
+    metrics_aggregated {
+        UUID id PK
+        UUID user_id FK
+        UUID cycle_id FK
+        integer jira_tickets_completed
+        integer git_commits
+        decimal current_score
+    }
+    
+    metric_data_points {
+        bigint id PK
+        UUID user_id FK
+        string metric_type
+        integer value
+        date recorded_date
+    }
+    
+    calibration_issues {
+        UUID id PK
+        UUID manager_id FK
+        UUID cycle_id FK
+        string severity
+        string issue_type
+        string status
+    }
+    
+    audit_logs {
+        bigint id PK
+        string action_type
+        string entity_type
+        UUID entity_id
+        UUID user_id FK
+        jsonb changes
+        timestamp created_at
+    }
+}
+
+
+
+Data Growth Considerations
+Volume Estimates
+Entity	Year 1	Year 3	Year 5	Monthly Growth
+metric_data_points	2.5M	7.5M	12.5M	200k
+audit_logs	500k	1.5M	2.5M	40k
+peer_feedbacks	100k	300k	500k	8k
+appraisals	10k	30k	50k	800
+context_notes	25k	75k	125k	2k
+Scaling Strategy
+Growth Phase	Strategy
+0-100k users	Single PostgreSQL instance with read replicas
+100k-1M users	Horizontal sharding by cycle_id or company_id
+Time-series data	TimescaleDB compression (90% space reduction)
+Search	Move to Elasticsearch for audit logs
+Caching	Redis cluster for aggregated metrics
+Maintenance Operations
+sql
+-- Daily maintenance (pg_cron)
+-- 1. Update aggregated metrics
+-- 2. Clean expired sessions
+-- 3. Archive old sync logs
+
+-- Weekly maintenance
+-- 1. VACUUM ANALYZE on high-churn tables
+-- 2. Reindex fragmented indexes
+
+-- Monthly maintenance
+-- 1. Compress metric_data_points older than 90 days (TimescaleDB)
+-- 2. Partition rotation for audit_logs
+-- 3. Update statistics
+Backup Strategy
+Backup Type	Frequency	Retention	RPO
+Full backup	Weekly	4 weeks	7 days
+Incremental	Daily	30 days	24 hours
+WAL archiving	Continuous	14 days	5 minutes
+Point-in-time recovery	N/A	14 days	5 minutes
+This database design provides a complete persistence layer for the AI-Powered Appraisal System, covering all entities, relationships, indexing for performance, audit compliance, and scaling considerations. Save as docs/04_database_design.md.
