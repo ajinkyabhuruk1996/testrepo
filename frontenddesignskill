@@ -1,0 +1,431 @@
+name: frontend-design
+description: Act as a Frontend Architect to choose framework, component structure, state management, routing, API integration, and error/loading patterns. Use after API design, before writing frontend code.
+
+Act as a Frontend Architect.
+
+Design frontend architecture:
+- Framework choice
+- Component structure
+- State management
+- Routing strategy
+- API integration pattern
+- Error and loading handling
+
+Include:
+- Folder structure
+- Reusability principles
+
+Output:
+- Markdown format
+- Save as docs/02_frontend_design.md
+
+---
+
+# Frontend Architecture Design: AI-Powered Appraisal System
+
+## 1. Framework Choice
+
+| Decision | Selection | Justification |
+|----------|-----------|----------------|
+| **Core Framework** | React 18+ (TypeScript) | Component reusability, strong ecosystem, excellent performance for data-heavy dashboards |
+| **Build Tool** | Vite | Fast HMR, optimized production builds, modern ESM support |
+| **UI Library** | ReactJS | Customizable, accessible components, matches enterprise design requirements |
+| **Type Safety** | TypeScript strict mode | Mandatory for role/permission data structures and API contracts |
+
+
+### 2. Component Structure
+src/
+├── components/
+│ ├── ui/ # shadcn/ui base components (Button, Card, Modal, etc.)
+│ ├── layout/
+│ │ ├── AppLayout.tsx
+│ │ ├── Sidebar.tsx
+│ │ ├── Header.tsx
+│ │ └── RoleBasedNav.tsx # Renders nav items based on user role
+│ │
+│ ├── common/ # Reusable business-agnostic components
+│ │ ├── DataTable/
+│ │ ├── MetricCard/
+│ │ ├── StatusBadge/
+│ │ ├── LoadingSkeleton/
+│ │ ├── ErrorBoundary/
+│ │ └── ConfirmationModal/
+│ │
+│ ├── features/ # Feature-based modules (colocated logic)
+│ │ ├── dashboard/
+│ │ │ ├── components/
+│ │ │ │ ├── PerformanceTrendChart.tsx
+│ │ │ │ ├── MetricAlert.tsx
+│ │ │ │ └── BenchmarkComparison.tsx
+│ │ │ ├── hooks/
+│ │ │ │ └── useDashboardData.ts
+│ │ │ └── DashboardPage.tsx
+│ │ │
+│ │ ├── manager/
+│ │ │ ├── components/
+│ │ │ │ ├── TeamMemberList.tsx
+│ │ │ │ ├── AIDraftViewer.tsx
+│ │ │ │ ├── SourceCitationPanel.tsx
+│ │ │ │ └── OverrideEditor.tsx
+│ │ │ ├── hooks/
+│ │ │ │ ├── useTeamData.ts
+│ │ │ │ └── useAppraisalDraft.ts
+│ │ │ └── ManagerDashboard.tsx
+│ │ │
+│ │ ├── employee/
+│ │ │ ├── components/
+│ │ │ │ ├── ContextForm.tsx
+│ │ │ │ ├── AchievementList.tsx
+│ │ │ │ ├── ArtifactUploader.tsx
+│ │ │ │ ├── DataPrivacyPanel.tsx
+│ │ │ │ └── AISuggestionsCard.tsx
+│ │ │ ├── hooks/
+│ │ │ │ ├── usePerformanceData.ts
+│ │ │ │ └── useContextSubmission.ts
+│ │ │ └── EmployeeDashboard.tsx
+│ │ │
+│ │ ├── hr/
+│ │ │ ├── components/
+│ │ │ │ ├── CalibrationIssuesTable.tsx
+│ │ │ │ ├── ManagerConsistencyGrid.tsx
+│ │ │ │ ├── RatingDistributionChart.tsx
+│ │ │ │ └── AuditTrailViewer.tsx
+│ │ │ ├── hooks/
+│ │ │ │ └── useCalibrationData.ts
+│ │ │ └── HRDashboard.tsx
+│ │ │
+│ │ └── auth/
+│ │ ├── LoginPage.tsx
+│ │ ├── RoleGuard.tsx # Protects routes by role
+│ │ └── useAuth.ts
+│ │
+│ └── tests/ # Component tests
+│
+├── pages/ # Route-level pages (thin wrappers around features)
+│ ├── EmployeeDashboardPage.tsx
+│ ├── ManagerDashboardPage.tsx
+│ ├── HRDashboardPage.tsx
+│ ├── AppraisalDetailPage.tsx
+│ ├── CalibrationPage.tsx
+│ └── AuditPage.tsx
+│
+├── hooks/ # Global shared hooks
+│ ├── useDebounce.ts
+│ ├── useLocalStorage.ts
+│ └── useWebSocket.ts # For real-time sync updates
+│
+├── services/ # API communication layer
+│ ├── apiClient.ts # Axios/fetch wrapper with interceptors
+│ ├── dashboardService.ts
+│ ├── appraisalService.ts
+│ ├── calibrationService.ts
+│ ├── employeeService.ts
+│ └── auditService.ts
+│
+├── stores/ # Zustand stores (state management)
+│ ├── authStore.ts
+│ ├── appraisalStore.ts
+│ ├── notificationStore.ts
+│ └── uiStore.ts
+│
+├── types/ # Global TypeScript types
+│ ├── user.types.ts # Role, Permission, UserProfile
+│ ├── appraisal.types.ts # AppraisalDraft, Metric, DataSource
+│ ├── calibration.types.ts
+│ └── api.types.ts
+│
+├── utils/ # Helper functions
+│ ├── formatters.ts # Date, currency, metric formatting
+│ ├── validators.ts
+│ ├── roleHelpers.ts # hasPermission(), getVisibleNavItems()
+│ └── errorHandlers.ts
+│
+├── constants/ # App constants
+│ ├── roles.ts
+│ ├── routes.ts
+│ └── config.ts # API base URL, feature flags
+│
+├── styles/
+│ └── globals.css
+│
+├── App.tsx
+└── main.tsx
+
+text
+
+## 3. State Management
+
+| State Type | Solution | Scope | Example |
+|------------|----------|-------|---------|
+| **Server State** | TanStack Query (React Query) | Global | Dashboard data, team lists, appraisal drafts, calibration metrics |
+| **Client State** | Zustand | Global | Auth user, UI theme, sidebar open/close, notification toast queue |
+| **Form State** | React Hook Form + Zod | Local | Context submission, override editor, artifact upload |
+| **URL State** | React Router v6 | Global | Query params (filters, selected employee), route params (appraisal ID) |
+
+**State Management Rules:**
+- All API data → React Query (caching, background refetch, optimistic updates)
+- User session & permissions → Zustand (persisted to localStorage)
+- Form inputs → React Hook Form (local component state)
+- URL filters → React Router `useSearchParams`
+
+## 4. Routing Strategy
+
+```typescript
+// Route configuration with role-based access
+const routes = [
+  {
+    path: '/login',
+    element: <LoginPage />,
+    public: true
+  },
+  {
+    path: '/',
+    element: <RoleGuard />,
+    children: [
+      {
+        path: 'employee',
+        element: <EmployeeDashboardPage />,
+        roles: ['employee', 'manager', 'hr']  // Employees see their own view
+      },
+      {
+        path: 'manager',
+        element: <ManagerDashboardPage />,
+        roles: ['manager', 'hr']
+      },
+      {
+        path: 'manager/team/:employeeId',
+        element: <AppraisalDetailPage />,
+        roles: ['manager', 'hr']
+      },
+      {
+        path: 'hr',
+        element: <HRDashboardPage />,
+        roles: ['hr']
+      },
+      {
+        path: 'hr/calibration',
+        element: <CalibrationPage />,
+        roles: ['hr']
+      },
+      {
+        path: 'hr/audit',
+        element: <AuditPage />,
+        roles: ['hr']
+      },
+      {
+        path: 'settings',
+        element: <SettingsPage />,
+        roles: ['employee', 'manager', 'hr']
+      }
+    ]
+  }
+];
+
+5. API Integration Pattern
+API Client Setup
+typescript
+// services/apiClient.ts
+class ApiClient {
+  private client: AxiosInstance;
+
+  constructor() {
+    this.client = axios.create({
+      baseURL: import.meta.env.VITE_API_BASE_URL,
+      timeout: 30000,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    // Request interceptor: Add auth token
+    this.client.interceptors.request.use((config) => {
+      const token = authStore.getState().accessToken;
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    });
+
+    // Response interceptor: Handle 401, 403, rate limiting
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          authStore.getState().logout();
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+}
+
+React Query Integration Pattern
+typescript
+// features/manager/hooks/useTeamData.ts
+export const useTeamData = (cycleId: string) => {
+  return useQuery({
+    queryKey: ['team', cycleId],
+    queryFn: () => teamService.getTeamMembers(cycleId),
+    staleTime: 5 * 60 * 1000,  // 5 minutes
+    refetchOnWindowFocus: false
+  });
+};
+
+// Mutation for updating appraisal draft
+export const useUpdateAppraisalDraft = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateDraftPayload) => appraisalService.updateDraft(data),
+    onSuccess: (data, variables) => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['appraisal', variables.employeeId] });
+      // Show success toast
+      notificationStore.getState().showSuccess('Draft saved');
+    },
+    onError: (error) => {
+      notificationStore.getState().showError('Failed to save draft');
+    }
+  });
+};
+6. Error and Loading Handling
+Loading States
+Pattern	Component	Use Case
+Skeleton Screens	<DataTableSkeleton />	Initial page load for dashboards
+Spinner Overlay	<FullPageSpinner />	Form submission, critical actions
+Inline Skeleton	<MetricCardSkeleton />	Individual card loading
+Progressive Loading	React Query isFetching	Background refetch (show subtle indicator)
+tsx
+// Example: Dashboard with loading states
+const DashboardPage = () => {
+  const { data, isLoading, isFetching, error } = useDashboardData();
+
+  if (isLoading) return <DashboardSkeleton />;
+  if (error) return <ErrorFallback error={error} retry={refetch} />;
+
+  return (
+    <div>
+      {isFetching && <TopProgressBar />}  {/* Subtle indicator for background refetch */}
+      <PerformanceChart data={data} />
+    </div>
+  );
+};
+Error Handling Patterns
+Error Type	User Experience	Recovery
+Network Error	Banner: "Connection lost. Retrying..."	Auto-retry with exponential backoff (3 attempts)
+403 Forbidden	Modal: "You don't have permission to view this"	Redirect to role-appropriate dashboard
+404 Not Found	Page: "Appraisal not found" + link to dashboard	Manual navigation
+Validation Error	Inline form errors (Zod + React Hook Form)	User correction + resubmit
+Server 500	Toast + error tracking to Sentry	Retry button or contact support
+Rate Limit (429)	"Too many requests. Waiting 5 seconds..."	Automatic retry with delay
+Global Error Boundary
+tsx
+// components/common/ErrorBoundary.tsx
+class AppErrorBoundary extends React.Component {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Log to monitoring service (Sentry/DataDog)
+    logger.error('Uncaught error:', { error, errorInfo });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen">
+          <h1>Something went wrong</h1>
+          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+          <Button variant="ghost" onClick={() => navigate('/')}>Go Home</Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+7. Reusability Principles
+Principle 1: Composition over Configuration
+Bad: <DataTable columns=[...] rows=[...] customRender={...} /> (massive prop drilling)
+
+Good: Compose features using slots
+
+tsx
+<DataTable>
+  <DataTable.Header>
+    <DataTable.Column field="name">Name</DataTable.Column>
+  </DataTable.Header>
+  <DataTable.Body>
+    {items.map(item => <DataTableRow item={item} />)}
+  </DataTable.Body>
+</DataTable>
+Principle 2: Custom Hooks for Business Logic
+Components should be presentation-only
+
+All API calls, transformations, and state go into hooks/
+
+Principle 3: Atomic Design for UI Components
+Atoms: Button, Input, Badge (shadcn/ui base)
+
+Molecules: SearchBar, MetricCard, AlertBanner
+
+Organisms: TeamMemberList, CalibrationIssuesTable
+
+Templates: DashboardLayout, FormLayout
+
+Pages: Route-specific composition
+
+Principle 4: Type-First Development
+API response types generated from OpenAPI spec (if available)
+
+Shared types between frontend and backend via types/ directory
+
+Strict TypeScript: noImplicitAny, strictNullChecks
+
+Principle 5: Feature-Based Colocation
+text
+features/manager/
+├── components/     # Only used by manager feature
+├── hooks/          # Only used by manager feature
+├── types/          # Feature-specific types
+└── utils/          # Feature-specific helpers
+Principle 6: Performance Optimization Rules
+React.memo() for expensive list items (TeamMemberRow)
+
+useCallback for functions passed to child components
+
+useMemo for derived data (filtered/sorted lists)
+
+Virtual scrolling for lists > 100 items (react-window)
+
+Lazy loading for route-level code splitting:
+
+tsx
+const HRDashboard = lazy(() => import('./pages/HRDashboardPage'));
+8. Real-time Updates (WebSocket)
+For live sync notifications (data source updates, AI draft completion):
+
+typescript
+// hooks/useWebSocket.ts
+export const useAppraisalUpdates = (employeeId: string) => {
+  useEffect(() => {
+    const ws = new WebSocket(`${WS_URL}/appraisals/${employeeId}`);
+    ws.onmessage = (event) => {
+      const update = JSON.parse(event.data);
+      queryClient.setQueryData(['appraisal', employeeId], update.data);
+      notificationStore.getState().showInfo('New data synced');
+    };
+    return () => ws.close();
+  }, [employeeId]);
+};
+9. Accessibility (a11y) Requirements
+All interactive elements must be keyboard navigable (Tab, Enter, Escape)
+
+ARIA labels for icon buttons: <Button aria-label="Edit draft">
+
+Color contrast ratio of at least 4.5:1 for text
+
+Focus indicators visible on all interactive elements
+
+Screen reader announcements for loading/error states using aria-live regions
+
+10. Performance Budgets
+Metric	Target
+First Contentful Paint (FCP)	< 1.5s
+Time to Interactive (TTI)	< 3.0s
+Lighthouse Performance Score	> 90
+Bundle size (initial)	< 200KB (gzipped)
+API response cache hit rate	> 80% for dashboard data
