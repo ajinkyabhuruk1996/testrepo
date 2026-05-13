@@ -1,0 +1,474 @@
+name: backend-design
+description: Act as a Backend Architect to define folder structure, layered architecture, error handling, logging, async processing, framework choice, and DI approach. Use after API and DB design, before writing backend code.
+
+Act as Backend Architect.
+
+Design backend application structure:
+- Project folder structure
+- Layered architecture (controller/service/repository)
+- Error handling strategy
+- Logging & observability
+- Background jobs / async processing
+- Framework choice
+- Coding standards
+- Dependency injection approach
+
+Output:
+- Markdown format
+- Save as docs/06_backend_design.md
+
+---
+
+# Backend Design: AI-Powered Appraisal System (Django)
+
+## Framework Choice
+
+| Decision | Selection | Justification |
+|----------|-----------|----------------|
+| **Framework** | Django 5.0+ | Batteries-included, robust ORM, built-in admin, excellent security |
+| **DRF** | Django REST Framework 3.14+ | REST API development, serializers, authentication |
+| **Runtime** | Python 3.11+ | Latest stable, improved performance |
+| **Database** | PostgreSQL 16+ | Primary database |
+| **ORM** | Django ORM | Built-in, powerful, migration system |
+| **Job Queue** | Celery + Redis | Distributed task queue |
+| **GitHub Client** | PyGithub + requests | Official GitHub API integration |
+| **Webhook Handler** | Django views + HMAC | Secure webhook processing |
+| **Testing** | pytest-django | Unit and integration tests |
+
+## Project Folder Structure
+backend/
+├── manage.py
+├── requirements/
+│ ├── base.txt
+│ ├── dev.txt
+│ └── prod.txt
+├── .env
+├── .env.example
+├── Dockerfile
+├── docker-compose.yml
+│
+├── src/
+│ ├── init.py
+│ ├── manage.py
+│ │
+│ ├── config/
+│ │ ├── init.py
+│ │ ├── settings/
+│ │ │ ├── init.py
+│ │ │ ├── base.py
+│ │ │ ├── development.py
+│ │ │ └── production.py
+│ │ ├── urls.py
+│ │ ├── asgi.py
+│ │ ├── wsgi.py
+│ │ └── celery.py
+│ │
+│ ├── apps/
+│ │ ├── init.py
+│ │ │
+│ │ ├── common/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── models.py
+│ │ │ ├── exceptions.py
+│ │ │ ├── permissions.py
+│ │ │ ├── middleware/
+│ │ │ └── utils/
+│ │ │
+│ │ ├── users/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── models.py
+│ │ │ ├── serializers.py
+│ │ │ ├── views.py
+│ │ │ └── urls.py
+│ │ │
+│ │ ├── auth/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── serializers.py
+│ │ │ ├── views.py
+│ │ │ └── urls.py
+│ │ │
+│ │ ├── employees/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── models.py
+│ │ │ ├── serializers.py
+│ │ │ ├── views.py
+│ │ │ ├── services/
+│ │ │ ├── repositories/
+│ │ │ └── urls.py
+│ │ │
+│ │ ├── managers/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── models.py
+│ │ │ ├── serializers.py
+│ │ │ ├── views.py
+│ │ │ ├── services/
+│ │ │ ├── repositories/
+│ │ │ └── urls.py
+│ │ │
+│ │ ├── hr/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── models.py
+│ │ │ ├── serializers.py
+│ │ │ ├── views.py
+│ │ │ ├── services/
+│ │ │ └── urls.py
+│ │ │
+│ │ ├── ai/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── services/
+│ │ │ └── tasks.py
+│ │ │
+│ │ ├── notifications/
+│ │ │ ├── init.py
+│ │ │ ├── apps.py
+│ │ │ ├── models.py
+│ │ │ ├── consumers.py
+│ │ │ └── routing.py
+│ │ │
+│ │ └── integrations/
+│ │ ├── init.py
+│ │ ├── apps.py
+│ │ ├── models.py
+│ │ ├── admin.py
+│ │ ├── urls.py
+│ │ │
+│ │ ├── github/
+│ │ │ ├── init.py
+│ │ │ ├── clients.py
+│ │ │ ├── webhooks.py
+│ │ │ ├── services.py
+│ │ │ ├── repositories.py
+│ │ │ ├── serializers.py
+│ │ │ ├── tasks.py
+│ │ │ └── urls.py
+│ │ │
+│ │ ├── jira/
+│ │ └── gitlab/
+│ │
+│ ├── lib/
+│ │ ├── cache/
+│ │ ├── logging/
+│ │ └── monitoring/
+│ │
+│ └── templates/
+│
+├── .github/
+│ └── workflows/
+│ ├── ci.yml
+│ ├── cd.yml
+│ └── tests.yml
+│
+├── logs/
+├── media/
+├── scripts/
+├── tests/
+└── docs/
+
+text
+
+## Layered Architecture
+
+### Architecture Diagram
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Client │
+│ (React Web App) │
+└─────────────────────────────────────────┬───────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ URL Dispatcher / Routing │
+└─────────────────────────────────────────┬───────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Middleware Layer │
+│ • Authentication (JWT) • Rate limiting │
+│ • Request/Response logging • Correlation ID │
+└─────────────────────────────────────────┬───────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ View Layer (Controller) │
+│ • DRF ViewSets / APIViews │
+│ • Request validation (serializers) │
+│ • Permission checks │
+│ • Response formatting │
+│ • NO business logic │
+└─────────────────────────────────────────┬───────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Service Layer (Business Logic) │
+│ • Orchestrates repositories and external APIs │
+│ • Contains business rules │
+│ • Transaction management │
+│ • Calls repositories for data access │
+└─────────────────────────────────────────┬───────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Repository Layer (Data Access) │
+│ • Django ORM queries encapsulated │
+│ • Custom QuerySets and Managers │
+│ • Caching layer │
+│ • NO business logic │
+└─────────────────────────────────────────┬───────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ ORM Layer (Django Models) │
+│ • Model definitions • Relationships │
+│ • Indexes, constraints • Custom model methods │
+└─────────────────────────────────────────┬───────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Database Layer │
+│ • PostgreSQL (primary) • Redis (cache + Celery broker) │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+text
+
+### Layer Responsibility Matrix
+
+| Layer | Responsibility | What NOT to do |
+|-------|----------------|----------------|
+| **View** | Handle HTTP, validation, permissions | No DB queries, no business logic |
+| **Service** | Business logic, orchestration, transactions | No HTTP concerns, no direct model access |
+| **Repository** | Data access, ORM queries, caching | No business rules |
+| **Model** | Define data structure, relationships | No complex business logic |
+| **Serializer** | Validate input, format output | No DB queries |
+
+## Error Handling Strategy
+
+### Exception Hierarchy
+Exception
+├── APIException (DRF base)
+│ ├── ValidationError (400)
+│ ├── AuthenticationFailed (401)
+│ ├── PermissionDenied (403)
+│ └── NotFound (404)
+├── BusinessException (Custom)
+│ ├── AppraisalLockedException
+│ ├── CycleNotActiveException
+│ └── InvalidTransitionException
+└── IntegrationException (Custom)
+├── GitHubAPIException
+├── RateLimitException
+└── WebhookVerificationException
+
+text
+
+### Error Response Format
+
+All API errors follow this consistent format:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| error.code | string | Machine-readable error code |
+| error.message | string | Human-readable error message |
+| error.timestamp | string | ISO 8601 timestamp |
+| error.path | string | Request path that caused error |
+
+### HTTP Status Codes
+
+| Status Code | Use Case |
+|-------------|----------|
+| 200 | Success |
+| 400 | Validation error |
+| 401 | Unauthenticated |
+| 403 | Permission denied |
+| 404 | Resource not found |
+| 409 | Conflict (e.g., locked appraisal) |
+| 429 | Rate limit exceeded |
+| 500 | Internal server error |
+| 503 | External service unavailable |
+
+## Logging & Observability
+
+### Log Levels
+
+| Level | Use Case |
+|-------|----------|
+| **DEBUG** | Development debugging, detailed request/response |
+| **INFO** | Normal operations, sync completions, user actions |
+| **WARNING** | Rate limits approaching, retryable failures |
+| **ERROR** | Exception caught, integration failures |
+| **CRITICAL** | System outage, data corruption |
+
+### Log Categories
+
+| Category | Purpose |
+|----------|---------|
+| `django` | Framework-level logs |
+| `apps` | Application business logic |
+| `audit` | Compliance and security events |
+| `github_integration` | GitHub API calls and webhooks |
+| `celery` | Background task execution |
+
+### Audit Log Fields
+
+| Field | Description |
+|-------|-------------|
+| correlation_id | Unique ID for request tracing |
+| user_id | Authenticated user identifier |
+| method | HTTP method (GET, POST, PUT, DELETE) |
+| path | Request URL path |
+| status_code | HTTP response status |
+| duration_ms | Request processing time |
+| ip | Client IP address |
+| user_agent | Client browser/application |
+
+## Background Jobs & Async Processing
+
+### Celery Task Queue Architecture
+
+| Component | Purpose |
+|-----------|---------|
+| **Celery Worker** | Executes background tasks |
+| **Redis Broker** | Stores task queue messages |
+| **Celery Beat** | Schedules recurring tasks |
+| **Flower** | Monitoring dashboard |
+
+### Task Categories
+
+| Category | Examples | Priority |
+|----------|----------|----------|
+| **GitHub Sync** | Commit sync, PR sync, user mapping | High |
+| **AI Processing** | Draft generation, bias detection | Medium |
+| **Notifications** | Email alerts, WebSocket pushes | Low |
+| **Reports** | CSV export, PDF generation | Low |
+| **Cleanup** | Log rotation, cache invalidation | Lowest |
+
+### Scheduled Jobs
+
+| Job Name | Schedule | Purpose |
+|----------|----------|---------|
+| GitHub Daily Sync | 2:00 AM daily | Full repository sync |
+| GitHub Hourly Sync | Every hour | Incremental commit sync |
+| Calibration Scan | 9:00 AM daily | Detect bias and outliers |
+| Anomaly Detection | 12:30 AM daily | Performance trend analysis |
+| Audit Log Cleanup | 1st of month | Archive old logs |
+
+### Retry Strategy
+
+| Attempt | Delay | Action |
+|---------|-------|--------|
+| 1st | 60 seconds | Retry failed task |
+| 2nd | 120 seconds | Retry with exponential backoff |
+| 3rd | 240 seconds | Final retry |
+| After 3 failures | N/A | Mark as failed, log error, alert admin |
+
+## Coding Standards
+
+### Style Guide
+
+| Standard | Tool | Configuration |
+|----------|------|---------------|
+| **Code Formatter** | Black | Line length: 100 |
+| **Import Sorting** | isort | Profile: black |
+| **Linting** | flake8 | Ignore: E501, W503 |
+| **Type Checking** | mypy | Strict mode: False |
+| **Docstrings** | Google style | Required for public methods |
+
+### Naming Conventions
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Modules | snake_case | `appraisal_service.py` |
+| Classes | PascalCase | `AppraisalService` |
+| Functions | snake_case | `calculate_rating()` |
+| Variables | snake_case | `employee_id` |
+| Constants | UPPER_SNAKE | `MAX_RETRY_COUNT` |
+| Private methods | _leading_underscore | `_validate_data()` |
+
+### Pre-commit Hooks
+
+| Hook | Purpose |
+|------|---------|
+| black | Code formatting |
+| isort | Import sorting |
+| flake8 | Linting |
+| trailing-whitespace | Remove trailing spaces |
+| end-of-file-fixer | Add newline at end of file |
+| check-json | Validate JSON files |
+| check-yaml | Validate YAML files |
+| check-added-large-files | Prevent large files |
+
+## Dependency Injection Approach
+
+Django doesn't have built-in DI, so we use a combination of patterns:
+
+### Pattern 1: Constructor Injection
+
+Services are instantiated in view constructors, making dependencies explicit and testable.
+
+### Pattern 2: Service Layer with Repository Pattern
+
+Repositories are injected into services, allowing easy mocking for unit tests.
+
+### Pattern 3: Factory Functions
+
+Simple factory functions create service instances with their dependencies.
+
+### Pattern 4: Django App Registry
+
+Services can be registered and retrieved via Django's app registry for cross-app dependencies.
+
+### Dependency Rules
+
+| Rule | Description |
+|------|-------------|
+| Views → Services | Views depend only on services |
+| Services → Repositories | Services depend only on repositories |
+| Repositories → Models | Repositories depend only on models |
+| No circular dependencies | Services cannot depend on each other cyclically |
+| Single responsibility | Each class has one reason to change |
+
+## GitHub External Integration Details
+
+### Connection Credentials
+
+| Credential | Source | Purpose |
+|------------|--------|---------|
+| `GITHUB_API_URL` | Environment | GitHub API endpoint |
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | Environment | Authentication for API calls |
+| `GITHUB_WEBHOOK_SECRET` | Environment | HMAC verification for webhooks |
+| `GITHUB_APP_ID` | GitHub App Settings | GitHub App authentication |
+| `GITHUB_APP_PRIVATE_KEY` | GitHub App Settings | JWT signing for GitHub App |
+| `GITHUB_INSTALLATION_ID` | GitHub App Settings | Installation-specific token |
+
+### Webhook Endpoint
+
+| Property | Value |
+|----------|-------|
+| **URL** | `POST https://api.yourcompany.com/api/v1/webhooks/github/` |
+| **Secret** | Configured in GitHub repository settings |
+| **Events** | push, pull_request, pull_request_review |
+
+### API Rate Limits
+
+| Authentication | Rate Limit | Reset Strategy |
+|----------------|------------|----------------|
+| Personal Access Token | 5,000 req/hour | Cache tokens, queue requests |
+| GitHub App | 15,000 req/hour | Distributed across installations |
+
+### Data Collected for Appraisal
+
+| Data Type | GitHub API Endpoint | Usage in Appraisal |
+|-----------|---------------------|---------------------|
+| Commits | `GET /repos/{owner}/{repo}/commits` | Activity metric, code contribution |
+| Pull Requests | `GET /repos/{owner}/{repo}/pulls` | Collaboration, code review |
+| Code Reviews | `GET /repos/{owner}/{repo}/pulls/{number}/reviews` | Quality, mentorship |
+| User Info | `GET /users/{username}` | Identity mapping |
+
+---
+
+This backend design provides a complete Django-based architecture with GitHub integration for the AI-Powered Appraisal System, including folder structure, layered architecture, error handling, logging, async processing, coding standards, and dependency injection patterns. Save as `docs/06_backend_design.md`.
