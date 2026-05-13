@@ -1,0 +1,604 @@
+name: api-design
+description: Act as an API Architect to design REST/GraphQL endpoints, schemas, auth, error handling, and versioning in OpenAPI-style markdown. Use after system architecture is set; produces no code, only API contracts.
+
+Act as an API Architect.
+
+Based on system architecture and user stories:
+
+Design REST (or GraphQL) APIs
+Define endpoints, request/response schemas
+Authentication & authorization approach
+Error handling standards
+Versioning strategy
+
+Rules:
+- Do NOT write actual code
+- Use OpenAPI-style structure in Markdown
+
+Output:
+- Markdown format
+- Save as docs/03_api_design.md
+
+---
+
+# API Design: AI-Powered Appraisal System
+
+## API Overview
+
+| Property | Decision |
+|----------|----------|
+| **Architecture Style** | RESTful |
+| **Protocol** | HTTPS |
+| **Data Format** | JSON (application/json) |
+| **Base URL** | `https://api.mycompany.com/v1` |
+| **Documentation Standard** | OpenAPI 3.0+ |
+
+## Authentication & Authorization
+
+### Authentication Method
+
+| Method | Details |
+|--------|---------|
+| **Scheme** | JWT (JSON Web Tokens) |
+| **Header** | `Authorization: Bearer <token>` |
+| **Token Lifetime** | Access: 15 minutes, Refresh: 7 days |
+| **Storage** | HTTP-only cookie or Secure LocalStorage |
+
+### Authorization Flow
+┌──────────┐ ┌──────────┐ ┌──────────┐
+│ Client │────▶│ /login │────▶│ Auth │
+│ │◀────│ │◀────│ Server │
+└──────────┘ └──────────┘ └──────────┘
+│ │ │
+│ JWT Token │ │
+│◀────────────────┘ │
+│ │
+│ Request + Bearer Token │
+│────────────────────────────────────▶│
+│ │
+│ Role-based Access Control (RBAC) │
+│◀────────────────────────────────────│
+
+text
+
+### Role-Based Access Control (RBAC)
+
+| Role | Permission Level | Accessible Resources |
+|------|-----------------|---------------------|
+| **employee** | Read own data, write context/achievements | `/api/employee/*` |
+| **manager** | Read/write team data, appraisals | `/api/manager/*`, `/api/employee/*` (team only) |
+| **hr** | Full read/write on calibration, audit, compliance | `/api/hr/*`, `/api/manager/*`, `/api/employee/*` |
+| **admin** | System configuration, integrations, cycles | `/api/admin/*`, all others |
+| **leader** | Read-only org summaries | `/api/leader/*` |
+
+### Permission Matrix
+
+| Endpoint Group | employee | manager | hr | admin | leader |
+|----------------|----------|---------|----|-------|--------|
+| `/api/auth/*` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `/api/employee/*` | ✓ (own) | ✓ (team) | ✓ (all) | ✓ | ✗ |
+| `/api/manager/*` | ✗ | ✓ | ✓ | ✓ | ✗ |
+| `/api/hr/*` | ✗ | ✗ | ✓ | ✓ | ✗ |
+| `/api/leader/*` | ✗ | ✗ | ✗ | ✗ | ✓ |
+| `/api/admin/*` | ✗ | ✗ | ✗ | ✓ | ✗ |
+
+---
+
+## API Endpoints
+
+### 1. Authentication & User Context
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| `POST` | `/api/auth/login` | Email/password login; returns user profile, role, JWT token | Public |
+| `POST` | `/api/auth/logout` | Blacklist token and invalidate session | Required |
+| `GET` | `/api/auth/me` | Get current user’s role, team ID, permissions | Required |
+| `POST` | `/api/auth/refresh` | Refresh expired JWT token | Required |
+| `POST` | `/api/auth/change-password` | Change user password | Required |
+
+#### Schemas
+
+**POST /api/auth/login - Request**
+```json
+{
+  "email": "string (email)",
+  "password": "string (min 8 chars)"
+}
+POST /api/auth/login - Response (200 OK)
+
+json
+{
+  "access_token": "string",
+  "refresh_token": "string",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "user": {
+    "id": "string (uuid)",
+    "email": "string",
+    "first_name": "string",
+    "last_name": "string",
+    "role": "employee | manager | hr | admin | leader",
+    "team_id": "string | null",
+    "permissions": ["string"],
+    "avatar_url": "string | null"
+  }
+}
+GET /api/auth/me - Response (200 OK)
+
+json
+{
+  "id": "string",
+  "email": "string",
+  "role": "string",
+  "team_id": "string | null",
+  "managed_team_ids": ["string"],
+  "permissions": ["string"],
+  "appraisal_cycle_id": "string"
+}
+2. Engineering Manager Endpoints
+2.1 Dashboard & Team Overview
+Method	Endpoint	Description
+GET	/api/manager/dashboard	Summary: team size, AI drafts ready, average time saved, cycle status
+GET	/api/manager/team	List of direct reports with appraisal completeness
+GET	/api/manager/team/search	Search team members by name/role (query: ?q=name&role=engineer)
+GET	/api/manager/employee/{id}/aggregated	All metrics for one employee with source citations
+Schemas
+GET /api/manager/dashboard - Response (200 OK)
+
+json
+{
+  "cycle": {
+    "id": "string",
+    "name": "H1 2026 Performance Review",
+    "status": "in_progress | completed | not_started",
+    "deadline": "2026-06-15T23:59:59Z"
+  },
+  "team_stats": {
+    "total_members": 6,
+    "ai_drafts_ready": 4,
+    "completed_appraisals": 2,
+    "avg_prep_time_minutes": 25,
+    "estimated_time_saved_hours": 10
+  },
+  "alerts": [
+    {
+      "type": "draft_ready",
+      "employee_id": "string",
+      "employee_name": "Sarah Chen",
+      "message": "AI draft ready for review"
+    }
+  ]
+}
+GET /api/manager/team - Response (200 OK)
+
+json
+{
+  "members": [
+    {
+      "id": "string",
+      "name": "Sarah Chen",
+      "role": "Senior Software Engineer",
+      "avatar_url": "string",
+      "draft_status": "ready | in_progress | not_started",
+      "completeness_percentage": 90,
+      "last_updated": "2026-05-10T14:30:00Z",
+      "readiness_date": "2026-05-08"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 6
+  }
+}
+GET /api/manager/employee/{id}/aggregated - Response (200 OK)
+
+json
+{
+  "employee": {
+    "id": "string",
+    "name": "Sarah Chen",
+    "role": "Senior Software Engineer",
+    "team": "Platform Engineering"
+  },
+  "metrics": {
+    "jira": {
+      "tickets_completed": 47,
+      "story_points": 124,
+      "velocity_avg": 12.4,
+      "bugs_fixed": 8,
+      "data_points": 247,
+      "last_sync": "2026-05-12T00:00:00Z"
+    },
+    "git": {
+      "commits": 523,
+      "prs_approved": 42,
+      "code_reviews": 18,
+      "data_points": 523,
+      "last_sync": "2026-05-12T00:00:00Z"
+    },
+    "feedback": {
+      "peer_reviews": 8,
+      "recognition_received": 5,
+      "data_points": 12,
+      "last_sync": "2026-05-11T00:00:00Z"
+    },
+    "learning": {
+      "courses_completed": 3,
+      "tech_talks_given": 2,
+      "data_points": 8,
+      "last_sync": "2026-05-10T00:00:00Z"
+    }
+  },
+  "citations": [
+    {
+      "source_type": "jira",
+      "ticket_id": "PROJ-123",
+      "title": "Implement authentication service",
+      "impact": "high",
+      "date": "2026-03-15"
+    }
+  ]
+}
+2.2 AI Draft & Appraisal Management
+Method	Endpoint	Description
+GET	/api/manager/employee/{id}/appraisal/draft	Retrieve AI-generated draft appraisal with cited data
+PUT	/api/manager/employee/{id}/appraisal	Update final appraisal (override AI text/rating)
+POST	/api/manager/employee/{id}/appraisal/approve	Lock and finalize appraisal
+GET	/api/manager/employee/{id}/appraisal/history	Previous appraisal ratings and trajectories
+Schemas
+GET /api/manager/employee/{id}/appraisal/draft - Response (200 OK)
+
+json
+{
+  "draft_id": "string",
+  "generated_at": "2026-05-10T08:00:00Z",
+  "rating": 4.2,
+  "rating_range": {
+    "min": 1.0,
+    "max": 5.0
+  },
+  "narrative": {
+    "strengths": "Sarah has consistently delivered high-quality code...",
+    "improvements": "Consider increasing cross-team collaboration...",
+    "summary": "Sarah exceeds expectations in technical execution..."
+  },
+  "suggestions": [
+    "Leadership workshop: Delegation Skills",
+    "Conference speaking opportunity"
+  ],
+  "citations": [
+    {
+      "claim": "Consistently delivers on time",
+      "sources": ["PROJ-123", "PROJ-456", "Peer feedback from Marcus"]
+    }
+  ],
+  "bias_flags": {
+    "recency_bias": false,
+    "leniency_bias": false,
+    "gender_bias": false
+  }
+}
+PUT /api/manager/employee/{id}/appraisal - Request
+
+json
+{
+  "rating": 4.0,
+  "manager_comments": "Sarah has shown exceptional growth this period...",
+  "override_narrative": {
+    "strengths": "Custom strength statement...",
+    "improvements": "Custom improvement area..."
+  },
+  "approved": false
+}
+PUT /api/manager/employee/{id}/appraisal - Response (200 OK)
+
+json
+{
+  "appraisal_id": "string",
+  "status": "draft | approved | final",
+  "updated_at": "2026-05-12T15:30:00Z",
+  "has_overrides": true,
+  "audit_id": "string"
+}
+2.3 Calibration Support
+Method	Endpoint	Description
+GET	/api/manager/calibration/team-comparison	Compare team ratings distribution vs organization average
+GET	/api/manager/calibration/outliers	Flag potential rating outliers within team
+POST	/api/manager/calibration/adjust-suggestion	Accept AI suggestion to adjust rating
+3. Employee (Individual Contributor) Endpoints
+3.1 Performance Dashboard
+Method	Endpoint	Description
+GET	/api/employee/dashboard	Current score vs benchmark, trend, alerts
+GET	/api/employee/metrics	Detailed counts with last sync timestamps
+GET	/api/employee/performance-trend	Raw time-series data for chart
+Schemas
+GET /api/employee/dashboard - Response (200 OK)
+
+json
+{
+  "current_score": 90,
+  "team_benchmark": 85,
+  "score_change_percentage": 5.9,
+  "trend": [
+    { "month": "Jan", "score": 82 },
+    { "month": "Feb", "score": 85 },
+    { "month": "Mar", "score": 88 },
+    { "month": "Apr", "score": 84 },
+    { "month": "May", "score": 90 }
+  ],
+  "alerts": [
+    {
+      "severity": "warning",
+      "type": "performance_dip",
+      "message": "Your April metrics decreased from previous months",
+      "suggestion": "Add context below to explain the dip"
+    }
+  ]
+}
+GET /api/employee/metrics - Response (200 OK)
+
+json
+{
+  "jira": { "count": 247, "last_sync": "2026-05-12T00:00:00Z", "status": "up_to_date" },
+  "git": { "count": 523, "last_sync": "2026-05-12T00:00:00Z", "status": "up_to_date" },
+  "peer_feedback": { "count": 12, "last_sync": "2026-05-10T00:00:00Z", "status": "up_to_date" },
+  "learning": { "count": 8, "last_sync": "2026-05-11T00:00:00Z", "status": "needs_update" },
+  "self_assessments": { "count": 3, "last_sync": "2026-05-08T00:00:00Z", "status": "needs_update" }
+}
+3.2 Adding Context & Self-Service Data
+Method	Endpoint	Description
+POST	/api/employee/context	Add contextual note to a specific metric
+GET	/api/employee/achievements	List self-submitted achievements
+POST	/api/employee/achievements	Create new achievement
+PUT	/api/employee/achievements/{id}	Update achievement
+DELETE	/api/employee/achievements/{id}	Delete achievement
+POST	/api/employee/artifacts	Upload supporting file
+GET	/api/employee/artifacts	List uploaded artifacts
+DELETE	/api/employee/artifacts/{id}	Remove artifact
+Schemas
+POST /api/employee/context - Request
+
+json
+{
+  "metric_type": "git_commits | jira_tickets | peer_feedback",
+  "period": "2026-04",
+  "note": "My April metrics were lower because I was on-call for 2 weeks handling production incidents, plus I took a week of approved vacation.",
+  "attachments": ["string (url)"]
+}
+POST /api/employee/achievements - Request
+
+json
+{
+  "title": "Led Platform Migration Project",
+  "description": "Reduced latency by 40% through database optimization",
+  "date": "2026-02-01",
+  "verification_required": true,
+  "verifiers": ["manager_id@example.com"]
+}
+POST /api/employee/artifacts - Request (multipart/form-data)
+
+text
+file: (binary)
+type: "presentation | feedback | design_doc | other"
+description: "Customer feedback on migration project"
+3.3 Improvement Suggestions
+Method	Endpoint	Description
+GET	/api/employee/suggestions	AI-powered improvement suggestions
+GET	/api/employee/early-warning	Performance trend warnings
+4. HR Business Partner Endpoints
+4.1 Calibration Dashboard
+Method	Endpoint	Description
+GET	/api/hr/calibration/dashboard	Cycle progress, completion rate, calibration metrics
+GET	/api/hr/calibration/issues	List AI-flagged issues (severity: LOW/MEDIUM/HIGH)
+GET	/api/hr/calibration/issues/{id}	Detailed view with AI recommendation
+POST	/api/hr/calibration/issues/{id}/resolve	Mark issue as resolved
+Schemas
+GET /api/hr/calibration/dashboard - Response (200 OK)
+
+json
+{
+  "cycle": {
+    "goal_days": 14,
+    "current_days": 12,
+    "status": "on_track | at_risk | delayed"
+  },
+  "completion": {
+    "completed": 38,
+    "total": 45,
+    "percentage": 84
+  },
+  "calibration_meetings": {
+    "held": 2,
+    "scheduled": 2
+  },
+  "compliance": {
+    "gdpr": 100,
+    "soc2": 100
+  }
+}
+GET /api/hr/calibration/issues - Response (200 OK)
+
+json
+{
+  "issues": [
+    {
+      "id": "string",
+      "severity": "HIGH | MEDIUM | LOW",
+      "type": "rating_outlier | low_consistency | gender_bias | recency_bias",
+      "manager_id": "string",
+      "manager_name": "John Smith",
+      "team_size": 6,
+      "affected_employees": ["Sarah Chen", "Marcus Johnson"],
+      "description": "Average team rating (4.6) is 0.6 points above organizational mean (4.0)",
+      "ai_recommendation": "Review ratings and compare with peer teams. Suggest calibration session.",
+      "suggested_action": "Adjust 2 ratings from 4.8 to 4.2",
+      "flagged_at": "2026-05-10T08:00:00Z"
+    }
+  ]
+}
+4.2 Manager Consistency & Benchmarking
+Method	Endpoint	Description
+GET	/api/hr/managers/consistency	Table of managers: team size, avg rating, std dev
+GET	/api/hr/ratings/distribution	Organization-wide rating frequencies
+GET	/api/hr/manager/{id}/team-ratings	Detailed rating distribution for one manager
+4.3 Audit & Compliance
+Method	Endpoint	Description
+GET	/api/hr/audit-log	All AI recommendations and manager overrides
+GET	/api/hr/compliance/status	GDPR/SOC2 compliance indicators
+GET	/api/hr/export/audit-csv	Download audit log as CSV
+5. Admin Endpoints
+5.1 Integration Sync
+Method	Endpoint	Description
+POST	/api/admin/integrations/sync/jira	Manually trigger Jira ticket sync
+POST	/api/admin/integrations/sync/git	Trigger Git commit sync
+POST	/api/admin/integrations/sync/feedback	Sync peer feedback from external tool
+GET	/api/admin/integrations/status	Last sync timestamps, rate limits, errors
+POST	/api/admin/integrations/webhook	Register webhook URL for real-time sync
+5.2 Weighting & Configuration
+Method	Endpoint	Description
+GET	/api/admin/weighting	Current scoring weights
+PUT	/api/admin/weighting	Update weights
+GET	/api/admin/competency-framework	Custom competency definitions per role
+PUT	/api/admin/competency-framework	Update competencies
+5.3 Cycle Management
+Method	Endpoint	Description
+POST	/api/admin/cycle/start	Begin new appraisal cycle
+GET	/api/admin/cycle/current	Get active cycle details
+POST	/api/admin/cycle/close	Close cycle, archive data
+6. AI & Analytics Endpoints
+Method	Endpoint	Description
+POST	/api/ai/generate-draft/{employee_id}	Trigger LLM to produce draft appraisal narrative
+POST	/api/ai/detect-bias	Run bias detection on a set of appraisals
+GET	/api/ai/anomaly-detection	Identify sudden changes in employee metrics
+POST	/api/ai/suggest-improvements	Generate personalized improvement suggestions
+7. Webhooks (Real-Time Updates)
+Method	Endpoint	Description
+POST	/api/webhooks/jira	Receive Jira event (ticket created/closed)
+POST	/api/webhooks/github	Receive Git push/PR event
+POST	/api/webhooks/slack	Receive kudos/recognition from Slack
+POST	/api/webhooks/lms	Receive learning course completion events
+Webhook Payload Format
+json
+{
+  "event_type": "jira.ticket_completed | git.push | slack.kudos | lms.course_completed",
+  "source": "string",
+  "timestamp": "2026-05-12T10:00:00Z",
+  "user_id": "string",
+  "data": {
+    // Source-specific payload
+  },
+  "signature": "string (HMAC for verification)"
+}
+Error Handling Standards
+HTTP Status Codes
+Range	Category	Description
+2xx	Success	Request succeeded
+4xx	Client Error	Request invalid or unauthorized
+5xx	Server Error	Internal server error
+Standard Error Response Format
+json
+{
+  "error": {
+    "code": "string",
+    "message": "string (human readable)",
+    "details": "string | null",
+    "timestamp": "2026-05-12T10:00:00Z",
+    "request_id": "string (correlation ID)",
+    "path": "/api/manager/team"
+  }
+}
+Error Codes
+HTTP Status	Error Code	Description	Client Action
+400	VALIDATION_ERROR	Request validation failed	Check request body
+400	MISSING_FIELD	Required field missing	Add missing field
+401	UNAUTHORIZED	No or invalid token	Redirect to login
+403	FORBIDDEN	Insufficient permissions	Show permission error
+404	NOT_FOUND	Resource not found	Verify resource ID
+409	CONFLICT	Resource version mismatch	Refresh and retry
+429	RATE_LIMITED	Too many requests	Wait and retry (check Retry-After header)
+500	INTERNAL_ERROR	Server error	Retry with backoff
+503	SERVICE_UNAVAILABLE	Integration service down	Try later
+Rate Limiting
+Tier	Requests per Minute	Requests per Hour
+Default (authenticated)	60	1000
+Employee endpoints	120	2000
+Admin/HR endpoints	30	500
+Webhooks	300	5000
+Rate Limit Headers
+
+text
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 58
+X-RateLimit-Reset: 1623456789
+Retry-After: 30
+Versioning Strategy
+Versioning Method
+Decision	Value
+Method	URL path prefix
+Format	/v1/, /v2/
+Deprecation Policy	12 months notice
+Deprecation Header	Deprecation: true
+Version Lifecycle
+text
+┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
+│ Current │────▶│   Beta  │────▶│  Stable │────▶│Deprecated│
+│  (v1)   │     │  (v2)   │     │  (v2)   │     │  (v1)   │
+└─────────┘     └─────────┘     └─────────┘     └─────────┘
+     │               │               │               │
+     │               │               │               │
+     ▼               ▼               ▼               ▼
+  Production      Early           Full              Sunset
+   Only           Adopters        Release           (12 months)
+Version Headers
+Header	Value	Description
+API-Version	2026-05-01	Date-based version
+Deprecation	true	Marks deprecated endpoints
+Sunset	Mon, 01 May 2027 00:00:00 GMT	Sunset date
+Breaking vs Non-Breaking Changes
+Change Type	Version Bump	Example
+Add new endpoint	Minor (v1.1)	New /metrics endpoint
+Add optional field	Minor	New avatar_url field
+Remove field	Major (v2.0)	Remove deprecated old_field
+Change field type	Major	id from number to string
+Change required field	Major	Make email required
+OpenAPI Specification Summary
+yaml
+openapi: 3.0.0
+info:
+  title: AI-Powered Appraisal System API
+  version: 1.0.0
+  description: REST API for managing employee appraisals with AI capabilities
+
+servers:
+  - url: https://api.mycompany.com/v1
+    description: Production
+  - url: https://sandbox-api.mycompany.com/v1
+    description: Sandbox
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+tags:
+  - name: Authentication
+  - name: Manager
+  - name: Employee
+  - name: HR
+  - name: Admin
+  - name: AI
+  - name: Webhooks
+API Call Summary by Role
+Role	Primary Endpoint Group	Key Operations
+Employee	/api/employee/*	View dashboard, add context, submit achievements, upload artifacts
+Manager	/api/manager/*	View team, generate/override AI drafts, calibrate, approve appraisals
+HR	/api/hr/*	Calibration dashboard, flag issues, audit logs, manager consistency
+Admin	/api/admin/*	Trigger syncs, configure weights, manage cycles
+Leader	/api/leader/*	Org summaries, promotion candidates, manager effectiveness
+This API design covers all functionality required for the AI-powered appraisal system including data aggregation, AI draft generation, manager override, employee self-service, HR calibration, bias detection, audit trails, and compliance
