@@ -411,6 +411,39 @@ export const useAppraisalUpdates = (employeeId: string) => {
     return () => ws.close();
   }, [employeeId]);
 };
+
+WS_URL (WebSocket URL) is the endpoint address used to establish a real-time, bidirectional WebSocket connection between the frontend client and the backend server.
+
+In the context of the AI-Powered Appraisal System described in the frontend design document, WS_URL would be used for live updates such as:
+
+Purpose in the Appraisal System
+Use Case	Real-time Update Example
+Data sync completion	"Jira data just synced - 247 new tickets processed"
+AI draft generation	"Sarah Chen's AI appraisal draft is ready to review"
+Metric changes	"New commit detected from Marcus"
+Manager overrides	"Manager just adjusted rating for Priya Patel"
+Calibration alerts	"New bias pattern detected in John Smith's team"
+Employee context submission	"Sarah added context about her April metrics"
+Typical Configuration
+typescript
+// Environment-based configuration
+const WS_URL = import.meta.env.VITE_WS_BASE_URL || 'wss://api.mycompany.com/ws';
+
+// Example usage from the frontend design
+export const useAppraisalUpdates = (employeeId: string) => {
+  useEffect(() => {
+    const ws = new WebSocket(`${WS_URL}/appraisals/${employeeId}`);
+    ws.onmessage = (event) => {
+      const update = JSON.parse(event.data);
+      // Update React Query cache
+      queryClient.setQueryData(['appraisal', employeeId], update.data);
+      // Show notification
+      notificationStore.getState().showInfo('New data synced');
+    };
+    return () => ws.close();
+  }, [employeeId]);
+};
+
 9. Accessibility (a11y) Requirements
 All interactive elements must be keyboard navigable (Tab, Enter, Escape)
 
