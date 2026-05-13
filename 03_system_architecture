@@ -1,0 +1,557 @@
+name: system-architecture
+description: Act as a Principal Software Architect to design high-level system architecture including style, components, data flow, tech stack, integration points, and trade-offs. Use after requirements are finalized, before API design.
+
+Act as a Principal Software Architect.
+
+Design a high-level system architecture that includes:
+- Architecture style (monolith, microservices, modular monolith)
+- Major components
+- Data flow
+- Technology stack (frontend, backend, DB, infra)
+- Integration points
+- Trade-offs and rationale
+
+Constraints:
+- Prefer cloud-native design
+- Optimize for scalability and maintainability
+
+Output:
+- Markdown format
+- Include ASCII diagrams where useful
+- Save as docs/03_system_architecture.md
+
+---
+
+# System Architecture: AI-Powered Appraisal System
+
+## Architecture Overview
+
+### Architecture Style Decision
+
+| Decision | Selection | Rationale |
+|----------|-----------|-----------|
+| **Primary Style** | Modular Monolith | Simplifies initial deployment, reduces network complexity, allows future extraction to microservices |
+| **Deployment** | Cloud-Native (AWS/Azure/GCP) | Auto-scaling, managed services, high availability |
+| **Communication** | Synchronous: REST + Async: Message Queue | REST for user-facing APIs, message queue for background jobs |
+
+### Architecture Diagram
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Client Layer │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│ │ React SPA │ │ Mobile Web │ │ 3rd Party │ │ Webhooks │ │
+│ │ (Employee) │ │ (Manager) │ │ Integrations│ │ (Incoming) │ │
+│ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ │
+│ │ │ │ │ │
+│ └────────────────┼────────────────┼────────────────┘ │
+│ │ │ │
+│ ▼ ▼ │
+│ ┌───────────────────────────────────────────────────────────────────────────────┐ │
+│ │ CDN (CloudFront / CloudFlare) │ │
+│ │ Static Assets (JS, CSS, Images) │ │
+│ └───────────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+│
+▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Load Balancer │
+│ (AWS ALB / Nginx / HAProxy) │
+│ SSL Termination │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+│
+┌─────────────────────┼─────────────────────┐
+│ │ │
+▼ ▼ ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Application Layer (Modular Monolith) │
+│ │
+│ ┌─────────────────────────────────────────────────────────────────────────────┐ │
+│ │ API Gateway │ │
+│ │ (Authentication, Rate Limiting, Routing) │ │
+│ └─────────────────────────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ┌─────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Modular Monolith (Node.js + Express/NestJS) │ │
+│ │ │ │
+│ │ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │ │
+│ │ │ Auth │ │ Employee │ │ Manager │ │ HR │ │ │
+│ │ │ Module │ │ Module │ │ Module │ │ Module │ │ │
+│ │ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ │ │
+│ │ │ │ │ │ │ │
+│ │ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │ │
+│ │ │ Admin │ │ Leader │ │ AI │ │ Analytics │ │ │
+│ │ │ Module │ │ Module │ │ Module │ │ Module │ │ │
+│ │ └─────────────┘ └─────────────┘ └──────┬──────┘ └─────────────┘ │ │
+│ │ │ │ │
+│ │ ┌─────────────────────────────────────────┴─────────────────────────────┐ │ │
+│ │ │ Shared Services Layer │ │ │
+│ │ │ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │ │ │
+│ │ │ │ Audit │ │ Notif │ │ Calib │ │ Export │ │ Search │ │ │ │
+│ │ │ │ Logger │ │ Service │ │ Service │ │ Service │ │ Service │ │ │ │
+│ │ │ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ │ │ │
+│ │ └───────────────────────────────────────────────────────────────────────┘ │ │
+│ └─────────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+│ │ │
+▼ ▼ ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Data Layer │
+│ │
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │
+│ │ PostgreSQL │ │ Redis │ │ TimescaleDB │ │ S3 │ │
+│ │ (Primary) │ │ (Cache) │ │ (Time-Series)│ │ (Artifacts) │ │
+│ │ │ │ │ │ │ │ │ │
+│ │ • Users │ │ • Sessions │ │ • Metrics │ │ • Uploads │ │
+│ │ • Appraisals │ │ • Rate Limits│ │ • Trends │ │ • Artifacts │ │
+│ │ • Audit Logs │ │ • Queues │ │ │ │ • Exports │ │
+│ │ • Calibration│ │ • Locks │ │ │ │ │ │
+│ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ │
+│ │
+│ ┌──────────────┐ ┌──────────────┐ │
+│ │ Elasticsearch│ │ Message Queue│ │
+│ │ (Search) │ │ (RabbitMQ/SQS)│ │
+│ │ │ │ │ │
+│ │ • Audit Search│ │ • Sync Jobs │ │
+│ │ • Logs │ │ • AI Gen Queue│ │
+│ └──────────────┘ └──────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+│ │ │
+▼ ▼ ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ External Integration Layer │
+│ │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+│ │ Jira │ │ Git │ │ LMS │ │ Feedback │ │ HRIS │ │
+│ │ API │ │ (GitHub)│ │ (Udemy) │ │ System │ │ (Future) │ │
+│ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ │
+│ │ │ │ │ │ │
+│ └─────────────┼─────────────┼─────────────┼─────────────┘ │
+│ │ │ │ │
+│ ▼ ▼ ▼ │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Integration Adapters │ │
+│ │ (Webhook Receivers + Polling Jobs) │ │
+│ └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+text
+
+## Major Components
+
+### 1. Frontend Layer
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **React SPA** | React 18 + TypeScript | Employee, Manager, HR dashboards |
+| **State Management** | TanStack Query + Zustand | Server state caching, UI state |
+| **UI Components** | shadcn/ui + Tailwind CSS | Accessible, enterprise-ready components |
+| **Real-time** | WebSocket (Socket.io/WS) | Live sync notifications |
+
+### 2. Backend Modules (Modular Monolith)
+
+| Module | Responsibility | Key APIs |
+|--------|----------------|----------|
+| **API Gateway** | Auth, rate limiting, request routing | `/api/v1/*` |
+| **Auth Module** | User authentication, JWT, RBAC | `/api/auth/*` |
+| **Employee Module** | Self-service, context, achievements | `/api/employee/*` |
+| **Manager Module** | Team management, appraisals, AI drafts | `/api/manager/*` |
+| **HR Module** | Calibration, audit, compliance | `/api/hr/*` |
+| **Leader Module** | Org summaries, promotions | `/api/leader/*` |
+| **Admin Module** | Integrations, config, cycles | `/api/admin/*` |
+| **AI Module** | Draft generation, bias detection, suggestions | Internal gRPC |
+| **Analytics Module** | Aggregations, trending, reporting | Internal |
+
+### 3. Shared Services
+
+| Service | Purpose | Implementation |
+|---------|---------|----------------|
+| **Audit Logger** | Record all AI/manager actions | Async write to PostgreSQL + Elasticsearch |
+| **Notification Service** | Email, in-app, webhook alerts | Redis queue + SMTP/WebSocket |
+| **Calibration Service** | Bias detection, outlier flagging | Scheduled cron + AI evaluation |
+| **Export Service** | CSV/PDF report generation | Background job + S3 |
+| **Search Service** | Full-text search across entities | Elasticsearch |
+
+## Data Flow
+
+### Primary Flows
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Flow 1: AI Draft Generation │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+Manager UI API Gateway Manager Module AI Module PostgreSQL
+│ │ │ │ │
+│ POST /manager/employee/{id}/draft │ │ │
+│───────────────────▶│ │ │ │
+│ │ Forward Request │ │ │
+│ │───────────────────▶│ │ │
+│ │ │ │ │
+│ │ │ Get Aggregated │ │
+│ │ │ Metrics │ │
+│ │ │───────────────────────────────────▶│
+│ │ │ │ │
+│ │ │ Metrics + Config │ │
+│ │ │◀───────────────────────────────────│
+│ │ │ │ │
+│ │ │ Generate Draft │ │
+│ │ │ (gRPC) │ │
+│ │ │──────────────────▶│ │
+│ │ │ │ │
+│ │ │ Draft + Citations │ │
+│ │ │◀──────────────────│ │
+│ │ │ │ │
+│ │ Return Draft │ │ │
+│ │◀───────────────────│ │ │
+│ Display Draft │ │ │ │
+│◀───────────────────│ │ │ │
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Flow 2: External Data Sync (Async) │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+Jira Webhook API Gateway Message Queue Sync Worker PostgreSQL
+│ │ │ │ │
+│ POST /webhooks/jira │ │ │
+│───────────────────▶│ │ │ │
+│ │ │ │ │
+│ │ Publish Event │ │ │
+│ │──────────────────▶│ │ │
+│ │ │ │ │
+│ 202 Accepted │ │ │ │
+│◀───────────────────│ │ │ │
+│ │ │ │ │
+│ │ │ Consume Message │ │
+│ │ │──────────────────▶│ │
+│ │ │ │ │
+│ │ │ │ Transform & Store│
+│ │ │ │─────────────────▶│
+│ │ │ │ │
+│ │ │ │ Trigger AI │
+│ │ │ │ Re-evaluation │
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Flow 3: Manager Override + Audit │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+Manager UI API Gateway Manager Module Audit Logger PostgreSQL
+│ │ │ │ │
+│ PUT /manager/employee/{id}/appraisal │ │ │
+│───────────────────▶│ │ │ │
+│ │ Forward Request │ │ │
+│ │───────────────────▶│ │ │
+│ │ │ │ │
+│ │ │ Fetch Current │ │
+│ │ │ Appraisal │ │
+│ │ │──────────────────────────────────▶│
+│ │ │ │ │
+│ │ │ Current State │ │
+│ │ │◀──────────────────────────────────│
+│ │ │ │ │
+│ │ │ Calculate Diff │ │
+│ │ │ │ │
+│ │ │ Save Override │ │
+│ │ │──────────────────────────────────▶│
+│ │ │ │ │
+│ │ │ Async Audit │ │
+│ │ │──────────────────▶│ │
+│ │ │ │ Write Log │
+│ │ │ │────────────────▶│
+│ │ │ │ │
+│ Success Response │ │ │ │
+│◀───────────────────│ │ │ │
+
+text
+
+## Technology Stack
+
+### Frontend
+
+| Layer | Technology | Version | Purpose |
+|-------|------------|---------|---------|
+| Framework | React | 18.3+ | UI library |
+| Language | TypeScript | 5.x | Type safety |
+| Build Tool | Vite | 6.x | Fast builds |
+| UI Components | shadcn/ui | Latest | Accessible components |
+| Styling | Tailwind CSS | 3.x | Utility-first CSS |
+| State (Server) | TanStack Query | 5.x | Caching, sync |
+| State (Client) | Zustand | 4.x | UI state |
+| Routing | React Router | 6.x | Navigation |
+| Charts | Recharts | 2.x | Data visualization |
+| Forms | React Hook Form + Zod | Latest | Form validation |
+| HTTP Client | Axios | 1.x | API calls |
+| Real-time | Socket.io-client | 4.x | WebSocket |
+
+### Backend
+
+| Layer | Technology | Version | Purpose |
+|-------|------------|---------|---------|
+| Runtime | Node.js | 20.x LTS | JavaScript runtime |
+| Framework | NestJS | 10.x | Enterprise Node framework |
+| Language | TypeScript | 5.x | Type safety |
+| API Documentation | Swagger/OpenAPI | 3.0 | API docs |
+| Authentication | JWT + Passport | Latest | Auth middleware |
+| Validation | class-validator | Latest | Request validation |
+| Job Queue | BullMQ | Latest | Background jobs |
+| WebSocket | Socket.io | 4.x | Real-time updates |
+
+### AI/ML Services
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| LLM for Narratives | GPT-4 / Claude API | Draft generation |
+| Bias Detection | Custom Python microservice | Gender/cultural bias detection |
+| Anomaly Detection | Prophet / Isolation Forest | Metric dip detection |
+| Embeddings | OpenAI embeddings | Search similarity |
+| Orchestration | LangChain | AI workflow orchestration |
+
+### Data Layer
+
+| Database | Technology | Version | Purpose |
+|----------|------------|---------|---------|
+| Primary | PostgreSQL | 16+ | ACID transactions, main data |
+| Time-Series | TimescaleDB | 2.x | Metric trends |
+| Cache | Redis | 7.x | Sessions, rate limits, queues |
+| Search | Elasticsearch | 8.x | Audit log search |
+| Object Storage | S3 / R2 | - | Artifacts, exports |
+
+### Infrastructure
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Cloud Provider | AWS / Azure / GCP | Hosting |
+| Container Orchestration | Kubernetes (EKS/AKS/GKE) | Container management |
+| Load Balancer | AWS ALB / Nginx Ingress | Traffic distribution |
+| CDN | CloudFront / CloudFlare | Static assets |
+| Monitoring | Prometheus + Grafana | Metrics & alerts |
+| Logging | ELK Stack / Datadog | Log aggregation |
+| Tracing | Jaeger / OpenTelemetry | Distributed tracing |
+| CI/CD | GitHub Actions / GitLab CI | Deployment pipeline |
+| Infrastructure as Code | Terraform | Cloud provisioning |
+
+## Integration Points
+
+### External Integrations
+
+| Integration | Protocol | Direction | Data Synced | Frequency |
+|-------------|----------|-----------|-------------|------------|
+| **Jira** | REST + Webhook | Inbound | Tickets, story points, bugs | Real-time webhook + hourly poll |
+| **GitHub/GitLab** | REST + Webhook | Inbound | Commits, PRs, reviews | Real-time webhook + hourly poll |
+| **LMS (Udemy/LinkedIn)** | REST | Inbound | Course completion, certificates | Daily batch |
+| **Feedback Tools** | REST | Inbound | 360 reviews, kudos | Hourly poll |
+| **Slack** | Webhook | Outbound | Notifications, alerts | Real-time |
+| **Email (SMTP)** | SMTP | Outbound | Appraisal notifications | Real-time |
+| **HRIS (Future)** | REST/GraphQL | Bidirectional | Employee data, org chart | Daily sync |
+
+### Integration Architecture
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Integration Adapter Pattern │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ Integration Hub │
+│ (Centralized adapter management) │
+└─────────────────┬───────────────────────┘
+│
+┌─────────────────┬─────────────────┬───┴─────────────────┬─────────────────┐
+│ │ │ │ │
+▼ ▼ ▼ ▼ ▼
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│ Jira │ │ GitHub │ │ LMS │ │ Feedback │ │ HRIS │
+│ Adapter │ │ Adapter │ │ Adapter │ │ Adapter │ │ Adapter │
+├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤
+│ Webhook │ │ Webhook │ │ REST Poll │ │ REST Poll │ │ GraphQL │
+│ Receiver │ │ Receiver │ │ Scheduler │ │ Scheduler │ │ Client │
+├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤
+│ Rate Limit │ │ Rate Limit │ │ OAuth 2.0 │ │ API Key │ │ OAuth 2.0 │
+│ Handler │ │ Handler │ │ │ │ │ │ │
+├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤
+│ Normalizer │ │ Normalizer │ │ Normalizer │ │ Normalizer │ │ Normalizer │
+└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+│ │ │ │ │
+└─────────────────┴─────────────────┼─────────────────────┴─────────────────┘
+│
+▼
+┌─────────────────────────────────────────┐
+│ Canonical Data Model │
+│ (Unified metric & event format) │
+└─────────────────────────────────────────┘
+
+text
+
+## Trade-offs and Rationale
+
+### Architecture Decision Records
+
+#### ADR-001: Modular Monolith vs Microservices
+
+| Decision | Selected: **Modular Monolith** |
+|----------|-------------------------------|
+| **Rationale** | Team size (5-10 engineers) doesn't justify microservices complexity. Clear module boundaries allow future extraction. |
+| **Trade-offs** | + Simpler deployment, lower latency, easier transactions <br>- Harder to scale individual modules, longer build times |
+| **Future Path** | Extract AI module to separate service if GPU demand grows; extract HR module for separate compliance deployment |
+
+#### ADR-002: Node.js vs Python vs Go
+
+| Decision | Selected: **Node.js (NestJS)** |
+|----------|-------------------------------|
+| **Rationale** | TypeScript provides excellent developer experience. Single language across frontend/backend reduces context switching. |
+| **Trade-offs** | + Faster development, shared types, large ecosystem <br>- CPU-intensive AI tasks better in Python (separate service) |
+| **Future Path** | AI/ML services built in Python (FastAPI) as separate microservices |
+
+#### ADR-003: PostgreSQL vs NoSQL
+
+| Decision | Selected: **PostgreSQL** (with JSONB) |
+|----------|---------------------------------------|
+| **Rationale** | Appraisal data has complex relationships (users, teams, cycles). ACID compliance critical for audit trails. |
+| **Trade-offs** | + Strong consistency, joins, transactions, JSONB flexibility <br>- Vertical scaling limit, more complex sharding |
+| **Future Path** | Read replicas for dashboards; TimescaleDB for time-series metrics |
+
+#### ADR-004: Real-time Updates Strategy
+
+| Decision | Selected: **WebSocket + Redis Pub/Sub** |
+|----------|----------------------------------------|
+| **Rationale** | Managers need immediate notification when AI drafts complete; employees need real-time sync status. |
+| **Trade-offs** | + Low latency, bidirectional <br>- Connection management overhead, stateful |
+| **Future Path** | Server-Sent Events (SSE) for read-only real-time updates |
+
+#### ADR-005: AI Service Architecture
+
+| Decision | Selected: **Separate Python Microservice** |
+|----------|--------------------------------------------|
+| **Rationale** | LLM inference, bias detection, and anomaly detection benefit from Python's AI/ML ecosystem (PyTorch, scikit-learn, LangChain). |
+| **Trade-offs** | + Best AI libraries, independent scaling, isolated failures <br>- Network latency, additional operational complexity |
+| **Future Path** | Consider serverless (AWS Lambda) for sporadic AI inference |
+
+## Scalability & High Availability
+
+### Scaling Strategy
+
+| Component | Scaling Method | Target |
+|-----------|---------------|--------|
+| Frontend SPA | CDN + Static hosting | Global edge caching |
+| API Gateway | Horizontal pods (HPA) | 10k+ req/sec |
+| Backend Modules | Horizontal pods (HPA) | Based on CPU/memory |
+| AI Service | GPU-backed horizontal scaling | Queue-based autoscaling |
+| PostgreSQL | Read replicas + connection pooling | 1M+ active users |
+| Redis Cluster | Sharded cluster | 100k+ concurrent sessions |
+| Message Queue | Partitioned queues | 1M+ messages/hour |
+
+### High Availability Design
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Multi-AZ / Multi-Region │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────┐
+│ Route 53 (DNS) │
+│ (Active/Passive) │
+└──────────┬──────────┘
+│
+┌────────────────────┼────────────────────┐
+│ │ │
+▼ ▼ ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ Region: us-east-1 │ │ Region: us-west-2 │ │ Region: eu-west-1 │
+│ (Primary) │ │ (Secondary) │ │ (DR Only) │
+│ │ │ │ │ │
+│ ┌─────────────┐ │ │ ┌─────────────┐ │ │ ┌─────────────┐ │
+│ │ EKS Cluster │ │ │ │ EKS Cluster │ │ │ │ EKS Cluster │ │
+│ │ (3 AZs) │ │ │ │ (3 AZs) │ │ │ │ (Standby) │ │
+│ └─────────────┘ │ │ └─────────────┘ │ │ └─────────────┘ │
+│ │ │ │ │ │
+│ ┌─────────────┐ │ │ ┌─────────────┐ │ │ │
+│ │ PostgreSQL │ │ │ │ PostgreSQL │ │ │ │
+│ │ (Primary) │◀───┼──│ │ (Replica) │ │ │ │
+│ └─────────────┘ │ │ └─────────────┘ │ │ │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+
+RPO: < 5 minutes, RTO: < 15 minutes
+
+text
+
+## Deployment Architecture (Kubernetes)
+
+```yaml
+# High-level deployment configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: appraisal-system
+---
+# Horizontal Pod Autoscaler for API
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+spec:
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+Security Architecture
+text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              Security Layers                                        │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+  Layer 1: Network
+  ┌─────────────────────────────────────────────────────────────────────────────────┐
+  │ • VPC with private/public subnets                                               │
+  │ • WAF (Web Application Firewall)                                                │
+  │ • DDoS Protection (AWS Shield / CloudFlare)                                     │
+  │ • API Rate Limiting (per user + per IP)                                         │
+  └─────────────────────────────────────────────────────────────────────────────────┘
+
+  Layer 2: Application
+  ┌─────────────────────────────────────────────────────────────────────────────────┐
+  │ • JWT with short expiry (15 min) + refresh tokens (7 days)                      │
+  │ • RBAC (Role-Based Access Control)                                              │
+  │ • Input validation + SQL injection prevention (ORM)                             │
+  │ • CSP Headers, XSS protection                                                   │
+  └─────────────────────────────────────────────────────────────────────────────────┘
+
+  Layer 3: Data
+  ┌─────────────────────────────────────────────────────────────────────────────────┐
+  │ • TLS 1.3 for all network traffic                                              │
+  │ • Encryption at rest (AES-256) for PostgreSQL, S3, Redis                       │
+  │ • Column-level encryption for PII (employee names, emails)                     │
+  │ • Audit logging for all data access                                            │
+  │ • GDPR right-to-delete support (soft delete + anonymization)                   │
+  └─────────────────────────────────────────────────────────────────────────────────┘
+
+  Layer 4: Operational
+  ┌─────────────────────────────────────────────────────────────────────────────────┐
+  │ • Secret management (AWS Secrets Manager / HashiCorp Vault)                     │
+  │ • Regular security scanning (Snyk, Trivy)                                       │
+  │ • Penetration testing (quarterly)                                              │
+  │ • SOC2 / GDPR compliance monitoring                                            │
+  └─────────────────────────────────────────────────────────────────────────────────┘
+Cost Optimization
+Strategy	Implementation	Estimated Savings
+Auto-scaling	HPA scales down to 3 pods at night/weekends	40-60%
+Spot instances	AI training, batch jobs use spot instances	60-70%
+S3 lifecycle	Move old artifacts to Glacier after 90 days	80%
+Read replicas	Dashboard queries use replicas, not primary	50% (load reduction)
+Caching	Redis cache for aggregated metrics	70% reduction in DB queries
+Compression	TimescaleDB compression for old metrics	90% storage reduction
+Summary Architecture Decisions
+Area	Decision	Rationale
+Architecture Style	Modular Monolith	Simplicity with clear boundaries for future extraction
+Backend Language	Node.js (NestJS) + TypeScript	Shared types with frontend, excellent DX
+AI Services	Separate Python microservice	Access to best AI/ML libraries
+Primary Database	PostgreSQL	ACID, relationships, JSONB flexibility
+Time-Series	TimescaleDB	Efficient metric storage and querying
+Caching/Queues	Redis	Low latency, versatile data structures
+Search	Elasticsearch	Full-text search for audit logs
+Cloud Provider	AWS (preferred)	Mature services, broadest feature set
+Orchestration	Kubernetes	Portability, auto-scaling, ecosystem
+Real-time	WebSocket + Redis Pub/Sub	Bidirectional, low latency
+This system architecture provides a scalable, maintainable foundation for the AI-Powered Appraisal System. Save as docs/03_system_architecture.md.
