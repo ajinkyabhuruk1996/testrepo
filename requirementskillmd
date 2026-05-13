@@ -1,0 +1,125 @@
+name: requirements
+description: Act as a Business Analyst to derive functional/non-functional requirements, integrations, user roles, and data sensitivity classification from a Product Vision document. Use during SDLC requirements-gathering phase, before any system design.
+
+Act as a Business Analyst.
+
+Using the Product Vision document, derive:
+
+- Functional requirements
+- Non-functional requirements (high level)
+- External integrations (if any)
+- User roles and permissions
+- Data sensitivity classification (PII, confidential, public)
+
+Rules:
+- Do NOT design the system yet
+- Focus only on WHAT the system must do
+- Clearly number each requirement
+
+Output:
+- Markdown format
+- Save as docs/01_requirements.md
+
+---
+
+# Requirements Document: AI-Powered Appraisal System
+
+## 1. Functional Requirements
+
+### Data Integration & Aggregation
+1. The system SHALL integrate with Jira/Project Management tools to ingest ticket completion rates, story points delivered, and sprint velocity.
+2. The system SHALL ingest quality metrics including bugs created vs. bugs fixed and code review participation rates.
+3. The system SHALL integrate with Git/Version Control systems to analyze commit frequency and patterns.
+4. The system SHALL assess code review quality based on comment substance and knowledge sharing indicators.
+5. The system SHALL track Pull Request approval rates and collaboration metrics.
+6. The system SHALL aggregate peer feedback and 360-degree review data.
+7. The system SHALL ingest incident post-mortem reports and contributions.
+8. The system SHALL track recognition and kudos from team members.
+9. The system SHALL integrate with Learning & Development platforms to track completed courses, certifications, and internal knowledge sharing (documentation, tech talks).
+10. The system SHALL track mentorship activities.
+11. The system SHALL allow ingestion of employee-submitted self-assessments, achievements, reflections, and goal progress (OKRs/KPIs).
+12. The system SHALL ingest historical appraisal data including previous ratings, improvement areas, and career progression patterns.
+
+### AI/NLP Capabilities
+13. The system SHALL perform weighted scoring across different data sources for intelligent aggregation.
+14. The system SHALL apply contextual understanding (e.g., normalizing activity during on-call rotations).
+15. The system SHALL perform anomaly detection for sudden changes in performance patterns.
+16. The system SHALL convert technical metrics into readable performance narratives via Natural Language Generation.
+17. The system SHALL generate identified strengths, areas for improvement, and development suggestions.
+18. The system SHALL tailor language tone to the organizational culture.
+19. The system SHALL flag potential recency bias (overweighting recent work vs. full period).
+20. The system SHALL identify language patterns suggesting gender or cultural bias.
+21. The system SHALL normalize data based on team size, project complexity, and role expectations.
+22. The system SHALL identify hidden contributions (glue work, mentorship, knowledge sharing).
+23. The system SHALL benchmark employee performance against role-level expectations.
+24. The system SHALL surface growth trajectory and potential indicators.
+
+### Manager Interface Features
+25. The system SHALL provide a unified dashboard showing a single view of all aggregated employee data.
+26. The system SHALL generate an AI draft appraisal with cited data sources.
+27. The system SHALL allow managers to edit, add context, and override AI suggestions.
+28. The system SHALL show employees which specific data points contributed to their review (Transparency Controls).
+29. The system SHALL maintain a log (audit trail) of manager edits vs. AI recommendations.
+30. The system SHALL support Calibration by comparing ratings across a team.
+31. The system SHALL flag outlier ratings for manager/HR review.
+32. The system SHALL suggest rating adjustments to improve fairness.
+
+### Employee Experience (Self-Service)
+33. The system SHALL allow employees to add contextual notes to their metrics (e.g., explaining low commit activity due to on-call duty).
+34. The system SHALL allow employees to highlight non-technical contributions (e.g., mentorship, documentation).
+35. The system SHALL allow employees to upload supporting artifacts (presentations, customer feedback, design docs).
+36. The system SHALL provide real-time visibility into performance progress tracking throughout the review period.
+37. The system SHALL provide early warnings to employees if performance metrics are trending downward.
+38. The system SHALL provide AI-powered improvement suggestions (e.g., workshop recommendations).
+
+### HR & Calibration Features
+39. The system SHALL track overall appraisal cycle progress (e.g., completion rate, days in cycle).
+40. The system SHALL flag calibration issues automatically (e.g., manager leniency, low consistency, gender bias patterns, recency bias).
+41. The system SHALL provide an organization rating distribution chart.
+42. The system SHALL provide a manager team comparison graph.
+43. The system SHALL show manager consistency analysis (team size, avg rating, standard deviation, outliers, status).
+
+## 2. Non-Functional Requirements (High Level)
+
+44. **Efficiency**: The system SHALL reduce manager appraisal prep time from 3-4 hours to 20-30 minutes per employee.
+45. **Efficiency**: The system SHALL reduce the overall HR appraisal cycle from 6 weeks to 2 weeks.
+46. **Performance**: The system SHALL support appraisal cycles with thousands of concurrent users.
+47. **Availability**: The system SHALL ensure high availability during peak "appraisal season" (e.g., end of quarter/cycle).
+48. **Security**: The system MUST comply with GDPR and SOC2 standards for employee data protection.
+49. **Auditability**: The system MUST maintain a complete audit trail of AI recommendations, manager overrides, and data sources used.
+50. **Explainability**: The AI model SHALL provide explainability for its scoring and narrative generation.
+
+## 3. External Integrations
+
+51. **Jira** (Project/Ticket Management)
+52. **Git** (Version Control - e.g., GitHub, GitLab, Bitbucket)
+53. **Feedback Systems** (e.g., Officevibe, Lattice, or custom 360-tools)
+54. **Learning & Development Platforms** (e.g., LinkedIn Learning, Udemy, internal LMS)
+55. **HRIS** (Potential future integration for employee baseline data)
+
+## 4. User Roles and Permissions
+
+56. **Employee (Individual Contributor)**
+    - Permissions: View own dashboard, add context to own metrics, upload own artifacts, view own performance trend, view AI suggestions for self-improvement.
+57. **Engineering Manager**
+    - Permissions: View aggregated data for direct reports, generate/edit/override AI appraisal drafts, view team calibration data, view audit trail of their own edits.
+58. **HR Business Partner**
+    - Permissions: Oversee whole organization/division appraisal process, view calibration dashboards for all managers, flag compliance issues, access audit logs, run compliance reports.
+59. **Senior Leader / Director**
+    - Permissions: View second-level appraisals, view promotion recommendations, view high-level talent distribution and flight risk indicators.
+
+## 5. Data Sensitivity Classification
+
+60. **Public Data** (Non-sensitive)
+    - General system documentation, UI text labels (non-personal), marketing descriptions of the tool.
+61. **Confidential Data** (Internal use only)
+    - Aggregated team velocity metrics (non-attributed), anonymized calibration statistics (e.g., "30% of teams show leniency bias").
+    - System performance metrics.
+62. **PII (Personally Identifiable Information) / Sensitive**
+    - Employee names, IDs, email addresses.
+    - Individual performance ratings and trajectories.
+    - Peer feedback text (360 reviews).
+    - Self-assessment narratives.
+    - Manager override notes and qualitative comments.
+    - Audit trail linking specific actions to specific users (managers or HR).
+    - Compensation-related data (inferred from promotion decisions).
